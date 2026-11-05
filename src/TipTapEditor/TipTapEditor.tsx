@@ -163,8 +163,9 @@ export default function TipTapEditor({
   // Handle font size change
   const handleFontSizeSelect = (size: string) => {
     if (editor) {
-      // @ts-expect-error font size extension command
-      editor.chain().focus().setFontSize(size).run();
+      (editor.chain().focus() as unknown as { setFontSize: (s: string) => { run: () => void } })
+        .setFontSize(size)
+        .run();
       setFontSize(size);
     }
     setShowFontSizeDropdown(false);
