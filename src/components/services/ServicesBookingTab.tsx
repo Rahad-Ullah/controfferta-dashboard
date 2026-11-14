@@ -1,10 +1,60 @@
 "use client";
 
-import BookingTable from "@/components/reservation-management/BookingTable";
+import BookingTable, { ApiAppointment } from "@/components/reservation-management/BookingTable";
 import BookingTabs, { BookingTab } from "@/components/reservation-management/BookingTabs";
 import UserPagination from "@/components/user-management/UserPagination";
-import { useGetAllAppointmentsQuery } from "@/features/appointment/appointmentApi";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+const STATIC_APPOINTMENTS: ApiAppointment[] = [
+  {
+    _id: "apt-1",
+    uid: "BK-1001",
+    customer: { firstName: "Marco", lastName: "Ferretti", email: "marco@ferretti.it" },
+    professional: { firstName: "Giulia", lastName: "Esposito" },
+    salon: { name: "Ferretti Serramenti" },
+    scheduledAt: "2026-01-12T09:00:00.000Z",
+    totalDurationInMinutes: 120,
+    pricing: { total: 240, currency: "EUR" },
+    paymentStatus: "paid",
+    status: "confirmed",
+  },
+  {
+    _id: "apt-2",
+    uid: "BK-1002",
+    customer: { firstName: "Luca", lastName: "Bianchi", email: "luca@bianchi.it" },
+    professional: { firstName: "Roberto", lastName: "Marini" },
+    salon: { name: "Solaris Energy" },
+    scheduledAt: "2026-01-14T11:30:00.000Z",
+    totalDurationInMinutes: 180,
+    pricing: { total: 480, currency: "EUR" },
+    paymentStatus: "unpaid",
+    status: "pending",
+  },
+  {
+    _id: "apt-3",
+    uid: "BK-1003",
+    customer: { firstName: "Anna", lastName: "Rossi", email: "anna@rossi.it" },
+    professional: { firstName: "Paolo", lastName: "Greco" },
+    salon: { name: "CasaMove Traslochi" },
+    scheduledAt: "2026-01-09T08:00:00.000Z",
+    totalDurationInMinutes: 240,
+    pricing: { total: 650, currency: "EUR" },
+    paymentStatus: "paid",
+    status: "completed",
+  },
+  {
+    _id: "apt-4",
+    uid: "BK-1004",
+    customer: { firstName: "Elena", lastName: "Conti", email: "elena@conti.it" },
+    professional: { firstName: "Giulia", lastName: "Esposito" },
+    salon: { name: "Infissi Group" },
+    scheduledAt: "2026-01-16T15:00:00.000Z",
+    totalDurationInMinutes: 90,
+    pricing: { total: 180, currency: "EUR" },
+    paymentStatus: "unpaid",
+    status: "cancelled",
+  },
+];
 
 export default function ServicesBookingTab() {
   const [activeTab, setActiveTab] = useState<BookingTab>("All");
@@ -12,28 +62,43 @@ export default function ServicesBookingTab() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Construct query parameters
-  const queryParams: Record<string, string | number> = {
-    page: currentPage,
-    limit: 10,
-  };
+  const appointments = useMemo(() => {
+    return STATIC_APPOINTMENTS.filter((item) => {
+      if (activeTab !== "All") {
+        const expected = activeTab.toLowerCase().replace(" ", "_");
+        if ((item.status || "").toLowerCase() !== expected) return false;
+      }
 
-  if (activeTab !== "All") {
-    queryParams.status = activeTab.toLowerCase().replace(" ", "_");
-  }
+      if (
+        paymentStatusFilter !== "all" &&
+        (item.paymentStatus || "").toLowerCase() !== paymentStatusFilter.toLowerCase()
+      ) {
+        return false;
+      }
 
-  if (paymentStatusFilter !== "all") {
-    queryParams.paymentStatus = paymentStatusFilter.toLowerCase();
-  }
+      if (searchTerm.trim()) {
+        const query = searchTerm.toLowerCase();
+        const haystack = [
+          item.uid,
+          item.customer?.firstName,
+          item.customer?.lastName,
+          item.customer?.email,
+          item.professional?.firstName,
+          item.professional?.lastName,
+          item.salon?.name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
 
-  if (searchTerm.trim()) {
-    queryParams.searchTerm = searchTerm.trim();
-  }
+      return true;
+    });
+  }, [activeTab, paymentStatusFilter, searchTerm]);
 
-  const { data: response, isLoading } = useGetAllAppointmentsQuery(queryParams);
-
-  const appointments = response?.data || [];
-  const totalPages = response?.pagination?.totalPage || response?.pagination?.totalPages || 1;
+  const isLoading = false;
+  const totalPages = 1;
 
   const handleTabChange = (tab: BookingTab) => {
     setActiveTab(tab);

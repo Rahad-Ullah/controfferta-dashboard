@@ -3,7 +3,6 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -12,7 +11,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { logout } from "@/features/auth/authSlice";
 import { cn } from "@/lib/utils";
 import {
   AlignLeft,
@@ -22,7 +20,6 @@ import {
   HelpCircle,
   Info,
   LayoutGrid,
-  LogOut,
   LucideIcon,
   SquarePen,
   Tag,
@@ -31,19 +28,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import toast from "react-hot-toast";
-import { useDispatch } from "react-redux";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../ui/alert-dialog";
 
 type MenuItem = {
   name: string;
@@ -70,24 +54,12 @@ const menuItems: MenuItem[] = [
 
 export default function AppSideBar() {
   const pathname = usePathname();
-  const dispatch = useDispatch();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
     return pathname === path || pathname.startsWith(`${path}/`);
-  };
-
-  const handleLogout = () => {
-    setIsLogoutModalOpen(false);
-    dispatch(logout());
-    document.cookie = "salon-admin-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-    document.cookie = "realState-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-    document.cookie = "salon-role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-    toast.success("Logged out successfully");
-    window.location.href = "/auth/login";
   };
 
   return (
@@ -175,44 +147,7 @@ export default function AppSideBar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* ── Logout Row ── */}
-        <SidebarFooter className="p-3 pt-1 pb-5">
-          <div className="w-full border-t border-slate-800/80 mb-2" />
-          <button
-            type="button"
-            onClick={() => setIsLogoutModalOpen(true)}
-            title={isCollapsed ? "Log Out" : undefined}
-            className={cn(
-              "flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-[#F87171] hover:bg-red-500/10 transition-colors w-full cursor-pointer select-none",
-              isCollapsed && "justify-center px-0 h-10 w-10 mx-auto"
-            )}
-          >
-            <LogOut className="w-5 h-5 shrink-0 text-[#F87171]" strokeWidth={1.8} />
-            {!isCollapsed && <span className="text-[15px] font-medium text-[#F87171]">Log Out</span>}
-          </button>
-        </SidebarFooter>
       </SidebarContent>
-
-      {/* ── Logout Dialog ── */}
-      <AlertDialog open={isLogoutModalOpen} onOpenChange={setIsLogoutModalOpen}>
-        <AlertDialogContent className="sm:max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to logout?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You will be redirected to the login page and your session will be cleared.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleLogout}
-              className="bg-[#EF4444] hover:bg-[#DC2626] text-white"
-            >
-              Logout
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Sidebar>
   );
 }

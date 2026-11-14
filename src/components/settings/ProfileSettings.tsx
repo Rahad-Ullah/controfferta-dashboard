@@ -1,26 +1,22 @@
 "use client";
 
-import { useGetMyProfileQuery, useUpdateProfileMutation } from "@/features/profile/profileApi";
-import { useUploadMutation } from "@/features/upload/uploadApi";
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-export default function ProfileSettings() {
-  const { data: profileResponse, isLoading: isFetchingProfile } = useGetMyProfileQuery({});
-  const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
-  const [upload, { isLoading: isUploading }] = useUploadMutation();
+const STATIC_ROLE = "Admin";
 
-  const profileData = profileResponse?.data;
+export default function ProfileSettings() {
+  const [isUploading, setIsUploading] = useState(false);
 
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
+    firstName: "Marco",
+    lastName: "Ferretti",
+    email: "marco@ferretti.it",
     image: "",
     phone: {
-      countryCode: "",
-      number: "",
+      countryCode: "+39",
+      number: "3331234567",
     },
     address: {
       line1: "",
@@ -38,33 +34,6 @@ export default function ProfileSettings() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (profileData) {
-      setFormData({
-        firstName: profileData.firstName || "",
-        lastName: profileData.lastName || "",
-        email: profileData.email || "",
-        image: profileData.image || "",
-        phone: {
-          countryCode: profileData.phone?.countryCode || "",
-          number: profileData.phone?.number || "",
-        },
-        address: {
-          line1: profileData.address?.line1 || "",
-          line2: profileData.address?.line2 || "",
-          city: profileData.address?.city || "",
-          state: profileData.address?.state || "",
-          country: profileData.address?.country || "",
-          postalCode: profileData.address?.postalCode || "",
-        },
-        location: profileData.location || {
-          type: "Point",
-          coordinates: [0, 0],
-        },
-      });
-    }
-  }, [profileData]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -78,72 +47,32 @@ export default function ProfileSettings() {
     }));
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    try {
-      const uploadFormData = new FormData();
-      uploadFormData.append("image", file);
-
-      const res = await upload(uploadFormData).unwrap();
-      const imageUrl = res?.data?.images?.[0] || res?.data?.url || res?.images?.[0];
-
-      if (imageUrl) {
-        setFormData((prev) => ({ ...prev, image: imageUrl }));
-        toast.success("Profile image uploaded!");
-      } else {
-        toast.error("Failed to extract image URL from server response.");
-      }
-    } catch (err: unknown) {
-      console.error("Image upload failed:", err);
-      toast.error((err as { data?: { message?: string } })?.data?.message || "Failed to upload image.");
-    }
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, image: String(reader.result || "") }));
+      setIsUploading(false);
+      toast.success("Profile image updated locally.");
+    };
+    reader.onerror = () => {
+      setIsUploading(false);
+      toast.error("Failed to read image.");
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const updateBody = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      image: formData.image,
-      phone: {
-        countryCode: formData.phone.countryCode,
-        number: formData.phone.number,
-      },
-      address: {
-        line1: formData.address.line1,
-        line2: formData.address.line2,
-        city: formData.address.city,
-        state: formData.address.state,
-        country: formData.address.country,
-        postalCode: formData.address.postalCode,
-      },
-      location: formData.location,
-    };
-
-    try {
-      const res = await updateProfile(updateBody).unwrap();
-      toast.success(res?.message || "Profile updated successfully!");
-    } catch (err: unknown) {
-      console.error("Profile update failed:", err);
-      toast.error((err as { data?: { message?: string } })?.data?.message || "Failed to update profile.");
-    }
+    toast.success("Profile saved locally.");
   };
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
   };
-
-  if (isFetchingProfile) {
-    return (
-      <div className="bg-white rounded-2xl p-12 border border-black/5 shadow-xs flex flex-col items-center justify-center min-h-[300px]">
-        <Loader2 className="w-7 h-7 animate-spin text-[#00BC7D] mb-3" />
-        <span className="text-sm font-medium text-neutral-600">Loading profile details...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-2xl p-6 sm:p-8 border border-black/5 shadow-xs space-y-6">
@@ -152,11 +81,9 @@ export default function ProfileSettings() {
         <h2 className="text-2xl font-serif italic font-normal text-[#1E1E1E]">
           Profile Information
         </h2>
-        {profileData?.role && (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#F3F0EA] text-[#00BC7D] uppercase tracking-wider">
-            {profileData.role.replace("_", " ")}
-          </span>
-        )}
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#F3F0EA] text-[#00BC7D] uppercase tracking-wider">
+          {STATIC_ROLE}
+        </span>
       </div>
 
       {/* Avatar & Info */}
@@ -275,11 +202,10 @@ export default function ProfileSettings() {
         <div>
           <button
             type="submit"
-            disabled={isUpdating || isUploading}
+            disabled={isUploading}
             className="bg-[#0F172A] hover:bg-[#1E293B] text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-all shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-2"
           >
-            {isUpdating && <Loader2 className="w-4 h-4 animate-spin text-white" />}
-            {isUpdating ? "Saving Changes..." : "Save Changes"}
+            Save Changes
           </button>
         </div>
       </form>

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
-import ClientLayout from './ClientLayout';
 import "./globals.css";
 
 const geistSans = {
@@ -22,12 +21,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable}  antialiased h-screen`}
       >
-        {/* <ProtectedRoute> */}
-        <ClientLayout>
-          {children}
-          <Toaster />
-        </ClientLayout>
-        {/* </ProtectedRoute> */}
+        {children}
+        <Toaster />
       </body>
     </html>
   );

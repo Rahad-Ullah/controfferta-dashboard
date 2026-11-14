@@ -2,7 +2,6 @@
 
 import ModernDropdown from "@/components/ui/ModernDropdown";
 import UserPagination from "@/components/user-management/UserPagination";
-import { useGetAllServicesQuery } from "@/features/services/servicesApi";
 import {
   Clock,
   Eye,
@@ -52,36 +51,59 @@ export interface ApiService {
   uid?: string;
 }
 
+const STATIC_SERVICES: ApiService[] = [
+  {
+    _id: "svc-1",
+    uid: "SVC-0001",
+    name: "PVC window replacement",
+    category: { name: "Windows & Doors" },
+    description: "Replacement of residential PVC windows.",
+    priceInUSD: 1200,
+    durationInMinutes: 240,
+    status: "active",
+    createdBy: { firstName: "Giulia", lastName: "Esposito", email: "giulia@leadpro.it" },
+    createdAt: "2026-01-08T10:00:00.000Z",
+  },
+  {
+    _id: "svc-2",
+    uid: "SVC-0002",
+    name: "6kW solar panel system",
+    category: { name: "Solar Panels" },
+    description: "Residential rooftop solar installation.",
+    priceInUSD: 8400,
+    durationInMinutes: 480,
+    status: "active",
+    createdBy: { firstName: "Roberto", lastName: "Marini", email: "roberto@solaris.it" },
+    createdAt: "2026-01-07T10:00:00.000Z",
+  },
+  {
+    _id: "svc-3",
+    uid: "SVC-0003",
+    name: "Apartment move",
+    category: { name: "Moving" },
+    description: "Full apartment relocation inside the city.",
+    priceInUSD: 650,
+    durationInMinutes: 300,
+    status: "inactive",
+    createdBy: { firstName: "CasaMove", lastName: "Traslochi", email: "info@casamove.it" },
+    createdAt: "2026-01-05T10:00:00.000Z",
+  },
+];
+
 export default function AllServicesTab() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedService, setSelectedService] = useState<ApiService | null>(null);
 
-  // RTK Query: fetch services from API
-  const {
-    data: response,
-    isLoading,
-  } = useGetAllServicesQuery({
-    page: currentPage,
-    limit: 10,
-    searchTerm: searchTerm.trim(),
-    status: statusFilter,
-  });
-
-  // Services strictly from API response
-  const rawServices: ApiService[] = useMemo(() => response?.data || [], [response?.data]);
-
-  const pagination = response?.pagination || {
-    total: rawServices.length,
-    limit: 10,
-    page: currentPage,
+  const isLoading = false;
+  const pagination = {
     totalPage: 1,
   };
 
   // Filter services locally if needed
   const displayedServices = useMemo(() => {
-    return rawServices.filter((s) => {
+    return STATIC_SERVICES.filter((s) => {
       if (searchTerm.trim() !== "") {
         const query = searchTerm.toLowerCase();
         const matchesName = s.name?.toLowerCase().includes(query);
@@ -111,7 +133,7 @@ export default function AllServicesTab() {
 
       return true;
     });
-  }, [rawServices, searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter]);
 
   const handleResetFilters = () => {
     setSearchTerm("");

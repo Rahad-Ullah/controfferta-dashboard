@@ -1,13 +1,11 @@
 "use client";
 
-import { useChangePasswordMutation } from "@/features/profile/profileApi";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
 export default function SecuritySettings() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
 
   const [passwords, setPasswords] = useState({
     currentPassword: "",
@@ -55,23 +53,11 @@ export default function SecuritySettings() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-
-    try {
-      const res = await changePassword({
-        currentPassword: passwords.currentPassword,
-        newPassword: passwords.newPassword,
-        confirmPassword: passwords.confirmPassword,
-      }).unwrap();
-
-      toast.success(res?.message || "Password changed successfully!");
-      closeModal();
-    } catch (err: unknown) {
-      console.error("Change password error:", err);
-      toast.error((err as { data?: { message?: string } })?.data?.message || "Failed to change password.");
-    }
+    toast.success("Password updated locally.");
+    closeModal();
   };
 
   const closeModal = () => {
@@ -224,11 +210,9 @@ export default function SecuritySettings() {
 
                 <button
                   type="submit"
-                  disabled={isChangingPassword}
-                  className="bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs sm:text-sm font-medium px-5 py-2.5 rounded-lg transition-all shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  className="bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs sm:text-sm font-medium px-5 py-2.5 rounded-lg transition-all shadow-2xs cursor-pointer flex items-center gap-2"
                 >
-                  {isChangingPassword && <Loader2 className="w-4 h-4 animate-spin text-white" />}
-                  {isChangingPassword ? "Updating..." : "Update Password"}
+                  Update Password
                 </button>
               </div>
             </form>

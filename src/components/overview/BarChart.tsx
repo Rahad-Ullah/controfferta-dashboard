@@ -1,6 +1,5 @@
 "use client";
 
-import { useUserGrothQuery } from "@/features/analytics/analyticsApi";
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -13,17 +12,17 @@ import {
   XAxis,
 } from "recharts";
 
-type GrowthItem = {
-  year: number;
-  month: number;
-  monthName: string;
-  count: number;
-};
-
 const defaultMonths = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+
+const GROWTH_BY_YEAR: Record<number, number[]> = {
+  2026: [18, 24, 31, 22, 40, 36, 28, 45, 38, 42, 33, 29],
+  2025: [12, 15, 18, 21, 19, 25, 30, 27, 22, 26, 31, 35],
+  2024: [8, 10, 9, 14, 16, 12, 18, 20, 17, 15, 19, 21],
+  2023: [5, 6, 7, 8, 6, 9, 11, 10, 8, 12, 13, 14],
+};
 
 const availableYears = [2026, 2025, 2024, 2023];
 
@@ -37,40 +36,15 @@ export default function BarChart() {
     setIsMounted(true);
   }, []);
 
-  const timezone = useMemo(() => {
-    if (typeof Intl !== "undefined") {
-      try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Dhaka";
-      } catch {
-        return "Asia/Dhaka";
-      }
-    }
-    return "Asia/Dhaka";
-  }, []);
-
-  const { data: userGrowthResponse, isLoading } = useUserGrothQuery({
-    year: selectedYear,
-    timezone,
-  });
-
-  // Process data from API or fall back to empty months
   const chartData = useMemo(() => {
-    const rawData: GrowthItem[] = userGrowthResponse?.data || [];
-    return defaultMonths.map((monthName, index) => {
-      const monthNum = index + 1;
-      const found = rawData.find(
-        (item) =>
-          item.month === monthNum ||
-          item.monthName?.toLowerCase() === monthName.toLowerCase()
-      );
-      return {
-        monthName,
-        count: found ? Number(found.count) || 0 : 0,
-        year: found?.year || selectedYear,
-        month: monthNum,
-      };
-    });
-  }, [userGrowthResponse, selectedYear]);
+    const counts = GROWTH_BY_YEAR[selectedYear] ?? defaultMonths.map(() => 0);
+    return defaultMonths.map((monthName, index) => ({
+      monthName,
+      count: counts[index] ?? 0,
+      year: selectedYear,
+      month: index + 1,
+    }));
+  }, [selectedYear]);
 
   // Set default active month to latest with data or first month
   useEffect(() => {
@@ -143,7 +117,7 @@ export default function BarChart() {
 
       {/* Recharts Bar Chart Container */}
       <div className="pt-6 pb-2 w-full h-[240px]">
-        {isMounted && !isLoading ? (
+        {isMounted ? (
           <ResponsiveContainer width="100%" height="100%">
             <RechartsBarChart
               data={chartData}

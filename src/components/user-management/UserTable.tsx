@@ -1,7 +1,6 @@
 "use client";
 
 import ModernDropdown from "@/components/ui/ModernDropdown";
-import { useUpdateStatusMutation } from "@/features/users/usersApi";
 import {
   AlertTriangle,
   Calendar,
@@ -18,7 +17,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 export type ApiUser = {
@@ -73,8 +72,11 @@ export default function UserTable({
   searchPlaceholder = "Search by name or email...",
   emptyText = "No users found matching criteria.",
 }: UserTableProps) {
-  const [updateStatus, { isLoading: isUpdating }] = useUpdateStatusMutation();
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rows, setRows] = useState<ApiUser[]>(users);
+
+  useEffect(() => {
+    setRows(users);
+  }, [users]);
 
   // View Details Modal State
   const [selectedUser, setSelectedUser] = useState<ApiUser | null>(null);
@@ -87,50 +89,31 @@ export default function UserTable({
 
   // Client-side filter strictly by name and email (never by UID)
   const filteredUsers = useMemo(() => {
-    if (!searchTerm.trim()) return users;
+    if (!searchTerm.trim()) return rows;
     const term = searchTerm.toLowerCase().trim();
-    return users.filter((u) => {
+    return rows.filter((u) => {
       const fullName = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
       const email = (u.email || "").toLowerCase();
       return fullName.includes(term) || email.includes(term);
     });
-  }, [users, searchTerm]);
+  }, [rows, searchTerm]);
 
-  // Execute Block/Unblock status update after confirmation
-  const handleConfirmStatusChange = async () => {
+  const handleConfirmStatusChange = () => {
     if (!confirmAction) return;
     const { user, nextStatus } = confirmAction;
 
-    setUpdatingId(user._id);
-    try {
-      const res = await updateStatus({
-        userId: user._id,
-        status: nextStatus,
-      }).unwrap();
+    setRows((prev) =>
+      prev.map((row) => (row._id === user._id ? { ...row, status: nextStatus } : row))
+    );
 
-      toast.success(
-        res?.message ||
-          `User ${nextStatus === "active" ? "unblocked" : "blocked"} successfully`
-      );
-
-      // If the modal was showing this user, update its local status too
-      if (selectedUser?._id === user._id) {
-        setSelectedUser((prev) => (prev ? { ...prev, status: nextStatus } : null));
-      }
-
-      setConfirmAction(null);
-    } catch (err: unknown) {
-      const apiErr = err as {
-        data?: { message?: string; errorMessages?: Array<{ message?: string }> };
-      };
-      toast.error(
-        apiErr?.data?.message ||
-          apiErr?.data?.errorMessages?.[0]?.message ||
-          "Failed to update user status"
-      );
-    } finally {
-      setUpdatingId(null);
+    if (selectedUser?._id === user._id) {
+      setSelectedUser((prev) => (prev ? { ...prev, status: nextStatus } : null));
     }
+
+    toast.success(
+      `User ${nextStatus === "active" ? "unblocked" : "blocked"} locally`
+    );
+    setConfirmAction(null);
   };
 
   const getRoleBadge = (user: ApiUser) => {
@@ -249,7 +232,6 @@ export default function UserTable({
                   const fullName =
                     `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User";
                   const isActive = user.status === "active";
-                  const isCurrentUpdating = updatingId === user._id;
 
                   return (
                     <tr
@@ -330,20 +312,16 @@ export default function UserTable({
                           </button>
 
                           {/* Status Toggle Switch with Confirmation Popup */}
-                          {isCurrentUpdating && (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00BC7D]" />
-                          )}
                           <button
                             type="button"
                             role="switch"
                             aria-checked={isActive}
                             title={isActive ? "Block / Deactivate user" : "Unblock / Activate user"}
-                            disabled={isCurrentUpdating || isUpdating}
                             onClick={() => {
                               const nextStatus = isActive ? "inactive" : "active";
                               setConfirmAction({ user, nextStatus });
                             }}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/50 disabled:opacity-50 ${
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/50 ${
                               isActive ? "bg-[#00BC7D]" : "bg-neutral-300"
                             }`}
                           >
@@ -613,7 +591,6 @@ export default function UserTable({
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
-                disabled={isUpdating}
                 onClick={() => setConfirmAction(null)}
                 className="text-xs font-medium text-neutral-700 hover:text-neutral-900 px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-neutral-50 transition-colors cursor-pointer disabled:opacity-50"
               >
@@ -622,18 +599,14 @@ export default function UserTable({
 
               <button
                 type="button"
-                disabled={isUpdating}
                 onClick={handleConfirmStatusChange}
-                className={`text-xs sm:text-sm font-medium px-5 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-2 ${
+                className={`text-xs sm:text-sm font-medium px-5 py-2.5 rounded-xl transition-all shadow-2xs cursor-pointer flex items-center gap-2 ${
                   confirmAction.nextStatus === "inactive"
                     ? "bg-red-600 hover:bg-red-700 text-white"
                     : "bg-[#00BC7D] hover:bg-[#00a86b] text-white"
                 }`}
               >
-                {isUpdating && <Loader2 className="w-4 h-4 animate-spin text-white" />}
-                {isUpdating
-                  ? "Updating..."
-                  : confirmAction.nextStatus === "inactive"
+                {confirmAction.nextStatus === "inactive"
                   ? "Yes, Block User"
                   : "Yes, Unblock User"}
               </button>

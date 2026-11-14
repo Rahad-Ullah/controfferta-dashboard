@@ -1,6 +1,5 @@
 "use client";
 
-import { useGetPlatfromQuery, useUpdatePlatfromMutation } from "@/features/platfrom/platfromApi";
 import {
   CheckCircle2,
   DollarSign,
@@ -27,25 +26,22 @@ interface SuggestionItem {
 }
 
 export default function PlatformSettings() {
-  const { data: response, isLoading: isFetching } = useGetPlatfromQuery(undefined);
-  const [updatePlatform, { isLoading: isUpdating }] = useUpdatePlatfromMutation();
-
   const [formData, setFormData] = useState({
     platformFeePercentage: {
       customer: 2.5,
       provider: 8.0,
     },
     contactInfo: {
-      email: "",
+      email: "hello@controfferta.it",
       phone: {
-        countryCode: "+1",
-        number: "",
+        countryCode: "+39",
+        number: "3331234567",
       },
       whatsApp: {
-        countryCode: "+1",
-        number: "",
+        countryCode: "+39",
+        number: "3331234567",
       },
-      address: "",
+      address: "Via Torino 12, Milano, Italy",
       location: {
         type: "Point",
         coordinates: [-73.9903, 40.7512] as [number, number],
@@ -70,77 +66,16 @@ export default function PlatformSettings() {
   });
 
   // State for PhoneInput (E.164 strings)
-  const [rawPhone, setRawPhone] = useState<string>("");
-  const [rawWhatsApp, setRawWhatsApp] = useState<string>("");
+  const [rawPhone, setRawPhone] = useState<string>("+393331234567");
+  const [rawWhatsApp, setRawWhatsApp] = useState<string>("+393331234567");
 
   // Address Autocomplete state
-  const [addressInput, setAddressInput] = useState<string>("");
+  const [addressInput, setAddressInput] = useState<string>("Via Torino 12, Milano, Italy");
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState<boolean>(false);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
   const addressContainerRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Initialize form when API data arrives
-  useEffect(() => {
-    if (response?.data) {
-      const d = response.data;
-      const initialPhone =
-        d.contactInfo?.phone?.countryCode && d.contactInfo?.phone?.number
-          ? `${d.contactInfo.phone.countryCode}${d.contactInfo.phone.number}`
-          : "";
-      const initialWhatsApp =
-        d.contactInfo?.whatsApp?.countryCode && d.contactInfo?.whatsApp?.number
-          ? `${d.contactInfo.whatsApp.countryCode}${d.contactInfo.whatsApp.number}`
-          : "";
-
-      setRawPhone(initialPhone);
-      setRawWhatsApp(initialWhatsApp);
-      setAddressInput(d.contactInfo?.address || "");
-
-      setFormData({
-        platformFeePercentage: {
-          customer: d.platformFeePercentage?.customer ?? 0,
-          provider: d.platformFeePercentage?.provider ?? 0,
-        },
-        contactInfo: {
-          email: d.contactInfo?.email || "",
-          phone: {
-            countryCode: d.contactInfo?.phone?.countryCode || "+1",
-            number: d.contactInfo?.phone?.number || "",
-          },
-          whatsApp: {
-            countryCode: d.contactInfo?.whatsApp?.countryCode || "+1",
-            number: d.contactInfo?.whatsApp?.number || "",
-          },
-          address: d.contactInfo?.address || "",
-          location: {
-            type: "Point",
-            coordinates: [
-              d.contactInfo?.location?.coordinates?.[0] ?? -73.9903,
-              d.contactInfo?.location?.coordinates?.[1] ?? 40.7512,
-            ],
-          },
-        },
-        mobileAppLink: {
-          googlePlay: d.mobileAppLink?.googlePlay || "",
-          appleStore: d.mobileAppLink?.appleStore || "",
-        },
-        socialLink: {
-          facebook: d.socialLink?.facebook || "",
-          instagram: d.socialLink?.instagram || "",
-          twitter: d.socialLink?.twitter || "",
-          linkedin: d.socialLink?.linkedin || "",
-          youtube: d.socialLink?.youtube || "",
-          tiktok: d.socialLink?.tiktok || "",
-          reddit: d.socialLink?.reddit || "",
-          weChat: d.socialLink?.weChat || "",
-          discord: d.socialLink?.discord || "",
-          telegram: d.socialLink?.telegram || "",
-        },
-      });
-    }
-  }, [response]);
 
   // Close suggestions dropdown when clicking outside
   useEffect(() => {
@@ -274,10 +209,9 @@ export default function PlatformSettings() {
   };
 
   // Save Settings
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate phone numbers if entered
     if (rawPhone && !isValidPhoneNumber(rawPhone)) {
       toast.error("Please enter a valid phone number.");
       return;
@@ -288,70 +222,8 @@ export default function PlatformSettings() {
       return;
     }
 
-    const payload = {
-      platformFeePercentage: {
-        customer: Number(formData.platformFeePercentage.customer) || 0,
-        provider: Number(formData.platformFeePercentage.provider) || 0,
-      },
-      contactInfo: {
-        email: formData.contactInfo.email,
-        phone: {
-          countryCode: formData.contactInfo.phone.countryCode,
-          number: formData.contactInfo.phone.number,
-        },
-        whatsApp: {
-          countryCode: formData.contactInfo.whatsApp.countryCode,
-          number: formData.contactInfo.whatsApp.number,
-        },
-        address: formData.contactInfo.address,
-        location: {
-          type: "Point",
-          coordinates: [
-            Number(formData.contactInfo.location.coordinates[0]) || 0,
-            Number(formData.contactInfo.location.coordinates[1]) || 0,
-          ],
-        },
-      },
-      mobileAppLink: {
-        googlePlay: formData.mobileAppLink.googlePlay,
-        appleStore: formData.mobileAppLink.appleStore,
-      },
-      socialLink: {
-        facebook: formData.socialLink.facebook,
-        instagram: formData.socialLink.instagram,
-        twitter: formData.socialLink.twitter,
-        linkedin: formData.socialLink.linkedin,
-        youtube: formData.socialLink.youtube || "",
-        tiktok: formData.socialLink.tiktok || "",
-        reddit: formData.socialLink.reddit || "",
-        weChat: formData.socialLink.weChat || "",
-        discord: formData.socialLink.discord || "",
-        telegram: formData.socialLink.telegram || "",
-      },
-    };
-
-    try {
-      const res = await updatePlatform(payload).unwrap();
-      toast.success(res?.message || "Platform settings updated successfully!");
-    } catch (err: unknown) {
-      console.error("Platform update error:", err);
-      toast.error(
-        (err as { data?: { message?: string } })?.data?.message ||
-          "Failed to update platform settings."
-      );
-    }
+    toast.success("Platform settings saved locally.");
   };
-
-  if (isFetching) {
-    return (
-      <div className="bg-white rounded-2xl p-12 border border-black/5 shadow-xs flex flex-col items-center justify-center min-h-[300px]">
-        <Loader2 className="w-7 h-7 animate-spin text-[#00BC7D] mb-3" />
-        <span className="text-sm font-medium text-neutral-600">
-          Loading platform settings...
-        </span>
-      </div>
-    );
-  }
 
   const isPhoneValid = !rawPhone || isValidPhoneNumber(rawPhone);
   const isWhatsAppValid = !rawWhatsApp || isValidPhoneNumber(rawWhatsApp);
@@ -756,15 +628,10 @@ export default function PlatformSettings() {
         <div className="flex justify-end pt-2">
           <button
             type="submit"
-            disabled={isUpdating}
-            className="bg-[#0F172A] hover:bg-[#1E293B] text-white text-sm font-medium px-8 py-3 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+            className="bg-[#0F172A] hover:bg-[#1E293B] text-white text-sm font-medium px-8 py-3 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2"
           >
-            {isUpdating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {isUpdating ? "Saving Changes..." : "Save Platform Settings"}
+            <Save className="w-4 h-4" />
+            Save Platform Settings
           </button>
         </div>
       </form>
