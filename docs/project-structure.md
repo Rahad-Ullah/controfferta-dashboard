@@ -9,7 +9,7 @@ This app is the CONTROFFERTA.IT admin dashboard. Source lives under `src/`. Path
 - File and folder names are lowercase with hyphens: `env-config.ts`, `users/user-table.tsx`.
 - The exported React component is the only PascalCase name: file `sidebar.tsx`, function `Sidebar`.
 - Next.js reserved files stay as they are: `page.tsx`, `layout.tsx`, `route.ts`, `loading.tsx`, `error.tsx`, `not-found.tsx`.
-- Do not add new source files in the repository root. Root is for tooling: `package.json`, `next.config.ts`, `tsconfig.json`.
+- Do not add new source files in the repository root. Root is for tooling: `package.json`, `next.config.ts`, `tsconfig.json`, `AGENTS.md`.
 
 ## Where code goes
 
