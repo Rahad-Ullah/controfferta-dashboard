@@ -12,7 +12,7 @@ Socket.IO delivers a new notification. SWR holds the list, the unread count, and
 | Notification list key | `apiKeys.notifications` in `lib/api/keys.ts` |
 | Connection | `components/notifications/socket-provider.tsx` |
 | Screen | `components/notifications/`, rendered by `app/(main)/notifications/page.tsx` |
-| Sidebar badge | `components/shared/sidebar.tsx`, from the same SWR query |
+| Sidebar badge | `components/layout/sidebar.tsx`, from the same SWR query |
 
 `app/(main)/layout.tsx` mounts `SocketProvider` inside the SWR defaults so a socket event can call `mutate`.
 

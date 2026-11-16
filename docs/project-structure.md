@@ -6,7 +6,7 @@ This app is the CONTROFFERTA.IT admin dashboard. Source lives under `src/`. Path
 
 ## Naming
 
-- File and folder names are lowercase with hyphens: `env-config.ts`, `user-management/user-table.tsx`.
+- File and folder names are lowercase with hyphens: `env-config.ts`, `users/user-table.tsx`.
 - The exported React component is the only PascalCase name: file `sidebar.tsx`, function `Sidebar`.
 - Next.js reserved files stay as they are: `page.tsx`, `layout.tsx`, `route.ts`, `loading.tsx`, `error.tsx`, `not-found.tsx`.
 - Do not add new source files in the repository root. Root is for tooling: `package.json`, `next.config.ts`, `tsconfig.json`.
@@ -18,8 +18,8 @@ This app is the CONTROFFERTA.IT admin dashboard. Source lives under `src/`. Path
 | `app/` | Routes only. One `page.tsx` per URL. Layouts wrap a segment. |
 | `app/api/` | Route handlers this Next app owns, such as auth cookie set and clear. |
 | `components/ui/` | Shared primitives (button, input, dialog). |
-| `components/shared/` | Admin chrome used on every dashboard screen. `sidebar.tsx` and `header.tsx` stay here because `app/(main)/layout.tsx` renders them on every route. |
-| `components/<route>/` | Sections for one screen. The folder name matches the URL segment: `home/`, `user-management/`, `lead/`, `categories/`, `blog/`, `pricing/`, `transaction/`, `notifications/`, `settings/`, `faq/`, `disclaimer/`. |
+| `components/layout/` | Admin chrome used on every dashboard screen. `sidebar.tsx` and `header.tsx` stay here because `app/(main)/layout.tsx` renders them on every route. |
+| `components/<route>/` | Sections for one screen. The folder name matches the URL segment: `home/`, `users/`, `leads/`, `categories/`, `blogs/`, `pricing/`, `transactions/`, `notifications/`, `settings/`, `faqs/`, `disclaimer/`. |
 | `components/swr-config.tsx` | Root SWR defaults. `app/layout.tsx` wraps every page with `SwrDefaults`. |
 | `lib/` | Shared modules that are not React components. |
 | `lib/api/keys.ts` | Every SWR cache key. |
@@ -37,7 +37,7 @@ Route groups choose the layout. A group name in parentheses is not part of the U
 
 | Group | Layout | Screens |
 |---|---|---|
-| `(main)` | `app/(main)/layout.tsx` | Admin shell: `/`, `/user-management`, `/lead`, `/lead/import`, `/categories`, `/blog`, `/pricing`, `/transaction`, `/notifications`, `/settings`, `/faq`, `/disclaimer/privacy_policy`, `/disclaimer/terms_of_service`, `/disclaimer/general` |
+| `(main)` | `app/(main)/layout.tsx` | Admin shell: `/`, `/users`, `/leads`, `/leads/import`, `/categories`, `/blogs`, `/pricing`, `/transactions`, `/notifications`, `/settings`, `/faqs`, `/disclaimer/privacy_policy`, `/disclaimer/terms_of_service`, `/disclaimer/general` |
 
 There is no auth group yet. When login is connected, add `app/(auth)/layout.tsx` for login and password recovery, and keep the session in an HttpOnly cookie.
 

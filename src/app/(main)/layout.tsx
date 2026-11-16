@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import OptimusSidebar from "@/components/appSidebar/AppsideBar";
-import Header from "@/components/header/Header";
+import Header from "@/components/layout/header";
+import Sidebar from "@/components/layout/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import "../globals.css";
 
@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <SidebarProvider>
-      <OptimusSidebar />
+      <Sidebar />
       <SidebarInset className="bg-[#EDF0F3] flex flex-col overflow-hidden h-screen">
         <Header />
         <main className="flex-1 p-4 md:p-8 overflow-y-auto min-w-0 flex flex-col">{children}</main>
