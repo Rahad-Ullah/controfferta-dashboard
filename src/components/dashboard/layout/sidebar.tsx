@@ -9,8 +9,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import LogoutDialog from "@/components/dashboard/layout/logout-dialog";
 import { cn } from "@/lib/utils";
 import {
   AlignLeft,
@@ -23,12 +25,14 @@ import {
   LucideIcon,
   SquarePen,
   Tag,
+  LogOut,
   User,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 type MenuItem = {
   name: string;
@@ -56,6 +60,7 @@ const menuItems: MenuItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => {
@@ -152,6 +157,22 @@ export default function Sidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarFooter className="px-3 pb-4 pt-2">
+          <button
+            type="button"
+            onClick={() => setIsLogoutDialogOpen(true)}
+            className={cn(
+              "flex h-11 w-full cursor-pointer items-center gap-3 rounded-2xl px-4 text-[15px] font-medium text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200",
+              isCollapsed && "justify-center px-0",
+            )}
+            title="Log out"
+          >
+            <LogOut className="size-5 shrink-0" strokeWidth={1.8} />
+            {!isCollapsed && <span>Log out</span>}
+          </button>
+          <LogoutDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen} />
+        </SidebarFooter>
 
       </SidebarContent>
     </SidebarShell>

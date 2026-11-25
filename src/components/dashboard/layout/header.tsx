@@ -1,7 +1,11 @@
 "use client";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import LogoutDialog from "@/components/dashboard/layout/logout-dialog";
+import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const PAGE_TITLE_MAP: Record<string, string> = {
   "/": "Dashboard",
@@ -28,10 +32,38 @@ const PAGE_TITLE_MAP: Record<string, string> = {
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useCurrentUser();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const title =
     PAGE_TITLE_MAP[pathname] ||
     (pathname.startsWith("/disclaimer") ? "Disclaimer" : "Dashboard");
+
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Admin User";
+  const initials = [user?.firstName?.[0], user?.lastName?.[0]]
+    .filter(Boolean)
+    .join("")
+    .toUpperCase() || "A";
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <header className="flex h-16 items-center justify-between gap-3 bg-[#E5E7EB] px-3 sm:px-6 lg:px-8 w-full shrink-0 border-b border-neutral-300/50 select-none">
@@ -44,15 +76,57 @@ export default function Header() {
       </div>
 
       {/* ── Right Side: Circular Avatar 'M' ── */}
-      <div className="flex items-center">
+      <div ref={profileRef} className="relative flex items-center">
         <button
           type="button"
-          onClick={() => router.push("/settings")}
-          className="w-10 h-10 rounded-full bg-[#CBD5E1] text-[#334155] font-semibold text-sm flex items-center justify-center cursor-pointer hover:bg-[#b8c5d6] transition-colors shadow-2xs select-none"
+          onClick={() => setIsOpen((open) => !open)}
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[#CBD5E1] text-sm font-semibold text-[#334155] shadow-2xs transition-colors select-none hover:bg-[#b8c5d6]"
           title="Profile"
         >
-          M
+          {initials}
         </button>
+        <ChevronDown className={`ml-1 hidden size-4 text-slate-500 transition-transform sm:block ${isOpen ? "rotate-180" : ""}`} />
+
+        {isOpen ? (
+          <div
+            role="menu"
+            className="absolute top-12 right-0 z-50 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10"
+          >
+            <div className="border-b border-slate-100 px-4 py-4">
+              <p className="truncate text-sm font-semibold text-slate-900">{fullName}</p>
+              <p className="mt-1 truncate text-xs text-slate-500">{user?.email || ""}</p>
+            </div>
+            <div className="p-2">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setIsOpen(false);
+                  router.push("/settings");
+                }}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                <UserRound className="size-4 text-slate-500" />
+                Profile
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsLogoutDialogOpen(true);
+                }}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                <LogOut className="size-4" />
+                Log out
+              </button>
+            </div>
+          </div>
+        ) : null}
+        <LogoutDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen} />
       </div>
     </header>
   );
