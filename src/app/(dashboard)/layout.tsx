@@ -13,7 +13,7 @@ export default function DashboardLayout({
       <Sidebar />
       <SidebarInset className="bg-[#EDF0F3] flex flex-col overflow-hidden h-screen">
         <Header />
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto min-w-0 flex flex-col">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 2xl:p-8 overflow-y-auto min-w-0 flex flex-col">
           {children}
         </main>
       </SidebarInset>

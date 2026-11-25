@@ -27,6 +27,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 type MenuItem = {
@@ -72,18 +73,23 @@ export default function Sidebar() {
         <SidebarHeader className="pt-6 pb-2 px-5 flex flex-col items-start">
           <Link href="/" className="flex items-center">
             {isCollapsed ? (
-              <div className="flex items-center text-lg font-bold">
-                <span className="text-white">&lt;</span>
-                <span className="text-[#00BC7D]">&gt;</span>
-              </div>
+              <Image
+                src="/icons/apple-touch-icon.png"
+                alt="Controfferta"
+                width={180}
+                height={180}
+                priority
+                className="size-8 object-contain"
+              />
             ) : (
-              <div className="flex items-center text-xl font-bold tracking-wider font-sans">
-                <span className="text-white">CONTR</span>
-                <span className="text-white">&lt;</span>
-                <span className="text-[#00BC7D]">&gt;</span>
-                <span className="text-[#00BC7D]">FFERTA</span>
-                <span className="text-white">.IT</span>
-              </div>
+              <Image
+                src="/images/logo.png"
+                alt="Controfferta"
+                width={1290}
+                height={112}
+                priority
+                className="h-auto w-[216px]"
+              />
             )}
           </Link>
 

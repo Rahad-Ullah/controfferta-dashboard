@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased h-screen`}>
+      <body className={`${inter.variable} font-sans antialiased h-screen`}>
         {children}
         <Toaster />
       </body>

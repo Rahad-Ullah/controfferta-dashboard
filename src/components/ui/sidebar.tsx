@@ -31,6 +31,7 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "4rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+const TABLET_QUERY = "(min-width: 768px) and (max-width: 1023px)"
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
@@ -87,6 +88,21 @@ function SidebarProvider({
     },
     [setOpenProp, open]
   )
+
+  // Keep the sidebar compact on tablet-sized screens, where the full sidebar
+  // leaves too little room for the dashboard content.
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia(TABLET_QUERY)
+    const syncTabletState = () => {
+      if (mediaQuery.matches && !isMobile) {
+        setOpen(false)
+      }
+    }
+
+    syncTabletState()
+    mediaQuery.addEventListener("change", syncTabletState)
+    return () => mediaQuery.removeEventListener("change", syncTabletState)
+  }, [isMobile, setOpen])
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {

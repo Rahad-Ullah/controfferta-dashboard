@@ -146,20 +146,20 @@ const ACTIVITIES: Activity[] = [
 
 export default function OverviewPage() {
   return (
-    <div className="space-y-6 pb-6 select-none font-sans">
+    <div className="space-y-4 sm:space-y-6 pb-6 select-none font-sans">
       {/* ── Greeting Header ── */}
       <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">
         Good morning, Manish
       </h1>
 
       {/* ── Stat Cards (5 Column Grid) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3 sm:gap-4">
         {STATS.map((stat) => (
           <div
             key={stat.label}
-            className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/70 shadow-2xs flex flex-col justify-between"
+            className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 2xl:p-6 border border-slate-200/70 shadow-2xs flex flex-col justify-between"
           >
-            <div className={`text-3xl sm:text-4xl font-bold tracking-tight ${stat.color}`}>
+            <div className={`text-2xl sm:text-3xl 2xl:text-4xl font-bold tracking-tight whitespace-nowrap ${stat.color}`}>
               {stat.number}
             </div>
             <div className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5">
@@ -170,9 +170,9 @@ export default function OverviewPage() {
       </div>
 
       {/* ── Main Content Grid (Left Table & Right Stacked Cards) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 items-start">
         {/* Left Column (2/3 width) - Recent Transactions */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+        <div className="xl:col-span-2 min-w-0 bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/70 shadow-2xs">
           {/* Header */}
           <div className="flex items-center justify-between pb-4">
             <h2 className="text-lg font-bold text-[#0F172A]">Recent Transactions</h2>
@@ -230,18 +230,18 @@ export default function OverviewPage() {
         </div>
 
         {/* Right Column (1/3 width) - Revenue by Category & Recent Activity */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           {/* Card 1: Revenue by Category */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/70 shadow-2xs">
             <h2 className="text-lg font-bold text-[#0F172A] mb-5">
               Revenue by Category
             </h2>
             <div className="space-y-4">
               {CATEGORIES.map((cat) => (
                 <div key={cat.name}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-700">{cat.name}</span>
-                    <span className="font-bold text-[#0F172A]">{cat.amount}</span>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium text-slate-700">{cat.name}</span>
+                    <span className="shrink-0 font-bold text-[#0F172A]">{cat.amount}</span>
                   </div>
                   <div className="h-2 w-full bg-slate-100 rounded-full mt-2 overflow-hidden">
                     <div
@@ -255,7 +255,7 @@ export default function OverviewPage() {
           </div>
 
           {/* Card 2: Recent Activity */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/70 shadow-2xs">
             <h2 className="text-lg font-bold text-[#0F172A] mb-5">
               Recent Activity
             </h2>

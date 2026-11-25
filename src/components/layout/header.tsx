@@ -34,11 +34,11 @@ export default function Header() {
     (pathname.startsWith("/disclaimer") ? "Disclaimer" : "Dashboard");
 
   return (
-    <header className="flex h-16 items-center justify-between gap-4 bg-[#E5E7EB] px-6 sm:px-8 w-full shrink-0 border-b border-neutral-300/50 select-none">
+    <header className="flex h-16 items-center justify-between gap-3 bg-[#E5E7EB] px-3 sm:px-6 lg:px-8 w-full shrink-0 border-b border-neutral-300/50 select-none">
       {/* ── Left Side: Sidebar Toggle & Page Title ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <SidebarTrigger className="h-9 w-9 text-slate-700 hover:bg-black/5" />
-        <h1 className="text-xl font-bold text-[#0F172A] tracking-tight">
+        <h1 className="truncate text-lg sm:text-xl font-bold text-[#0F172A] tracking-tight">
           {title}
         </h1>
       </div>
