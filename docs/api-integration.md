@@ -4,7 +4,7 @@ This is the API integration guide for the private Controfferta admin dashboard a
 
 ## Current status
 
-The dashboard is currently a UI prototype. Screens use local constants and component state; the API client, SWR provider, cache-key registry, environment module, authentication cookie helpers, and socket provider are not implemented yet.
+The dashboard is currently a UI prototype. The shared SWR/API foundation is implemented in `src/components/swr-config.tsx`, `src/lib/api/`, and `src/lib/env-config.ts`; endpoint-specific screen wiring, authentication cookie helpers, and the socket provider are still pending.
 
 When a screen is connected, migrate one screen at a time. Keep all screens that are not connected on their existing sample data.
 

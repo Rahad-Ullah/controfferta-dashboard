@@ -55,13 +55,13 @@ Routes should remain thin. A route page renders a screen component from `src/com
 
 The current screens use local constants and `useState` for sample users, leads, categories, blogs, packages, transactions, notifications, profile data, and disclaimer content. This is intentional while the API is not connected.
 
-The future data layer is:
+The implemented/planned data layer is:
 
-- SWR for all per-user client data.
-- A single shared fetcher in `src/lib/api/fetcher.ts`.
-- Endpoint keys in `src/lib/api/keys.ts`.
-- `NEXT_PUBLIC_API_BASE_URL` read through `envConfig()`.
-- HttpOnly session cookies; no token or API-result persistence in browser storage.
+- SWR is configured globally for all future per-user client data.
+- The shared fetcher is implemented in `src/lib/api/fetcher.ts`.
+- Endpoint keys are registered in `src/lib/api/keys.ts`.
+- `NEXT_PUBLIC_API_BASE_URL` is read through `envConfig()`.
+- HttpOnly session cookies are planned; no token or API-result persistence is allowed in browser storage.
 
 See [`docs/api-integration.md`](./api-integration.md) and [`docs/swr.md`](./swr.md) before wiring a screen.
 
