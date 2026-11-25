@@ -18,14 +18,12 @@ const RESEND_COOLDOWN_SECONDS = 60;
 
 type VerifyEmailResponse = {
   message?: string;
-  data?: {
-    accessToken?: string;
-    refreshToken?: string;
-    resetToken?: string;
-    sessionId?: string;
-    role?: string;
-    _id?: string;
-  };
+  accessToken?: string;
+  refreshToken?: string;
+  resetToken?: string;
+  sessionId?: string;
+  role?: string;
+  _id?: string;
 };
 
 type OtpTimers = {
@@ -244,7 +242,7 @@ function VerifyOtpContent() {
         { throwOnError: true },
       );
 
-      const resetToken = response?.data?.resetToken;
+      const resetToken = response?.resetToken;
       toast.success(response?.message || "Code verified successfully!");
       sessionStorage.removeItem(timerStorageKey(email));
       if (resetToken) {

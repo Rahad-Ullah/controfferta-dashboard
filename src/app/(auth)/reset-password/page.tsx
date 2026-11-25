@@ -100,7 +100,7 @@ function ResetPasswordContent() {
 
         <Link
           href="/login"
-          className="flex h-[46px] w-full cursor-pointer items-center justify-center rounded-full bg-[#00BC7D] text-xs font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-[#00d68f] sm:text-sm"
+          className="flex h-11.5 w-full cursor-pointer items-center justify-center rounded-full bg-[#00BC7D] text-xs font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-[#00d68f] sm:text-sm"
         >
           Confirm
         </Link>
@@ -139,7 +139,7 @@ function ResetPasswordContent() {
                 }
               }}
               placeholder="Minimum 8 characters"
-              className={`h-[46px] w-full rounded-xl border bg-[#E5E9EC] py-0 pr-11 pl-4 text-xs text-slate-800 outline-none transition-colors placeholder:text-zinc-400 hover:bg-[#dfe4e8] sm:text-sm ${
+              className={`h-11.5 w-full rounded-xl border bg-[#E5E9EC] py-0 pr-11 pl-4 text-xs text-slate-800 outline-none transition-colors placeholder:text-zinc-400 hover:bg-[#dfe4e8] sm:text-sm ${
                 errors.password
                   ? "border-red-400 bg-red-50/20 focus:border-red-500"
                   : "border-slate-300/80 focus:border-[#00BC7D] focus:bg-white"
@@ -177,7 +177,7 @@ function ResetPasswordContent() {
                 }
               }}
               placeholder="Minimum 8 characters"
-              className={`h-[46px] w-full rounded-xl border bg-[#E5E9EC] py-0 pr-11 pl-4 text-xs text-slate-800 outline-none transition-colors placeholder:text-zinc-400 hover:bg-[#dfe4e8] sm:text-sm ${
+              className={`h-11.5 w-full rounded-xl border bg-[#E5E9EC] py-0 pr-11 pl-4 text-xs text-slate-800 outline-none transition-colors placeholder:text-zinc-400 hover:bg-[#dfe4e8] sm:text-sm ${
                 errors.confirmPassword
                   ? "border-red-400 bg-red-50/20 focus:border-red-500"
                   : "border-slate-300/80 focus:border-[#00BC7D] focus:bg-white"
@@ -210,14 +210,14 @@ function ResetPasswordContent() {
           <button
             type="submit"
             disabled={isMutating}
-            className="flex h-[46px] w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#00BC7D] text-xs font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-[#00d68f] disabled:opacity-50 sm:text-sm"
+            className="flex h-11.5 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#00BC7D] text-xs font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-[#00d68f] disabled:opacity-50 sm:text-sm"
           >
             {isMutating ? <Loader2 className="size-4 animate-spin" /> : <span>Confirm</span>}
           </button>
 
           <Link
             href="/login"
-            className="flex h-[46px] w-full cursor-pointer items-center justify-center rounded-full border border-slate-300/70 bg-[#E5E9EC] text-center text-xs font-semibold text-slate-700 transition-colors hover:bg-[#dfe4e8] sm:text-sm"
+            className="flex h-11.5 w-full cursor-pointer items-center justify-center rounded-full border border-slate-300/70 bg-[#E5E9EC] text-center text-xs font-semibold text-slate-700 transition-colors hover:bg-[#dfe4e8] sm:text-sm"
           >
             Back to Sign In
           </Link>
