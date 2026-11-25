@@ -1,15 +1,23 @@
 "use client";
 
-import BookingTable, { ApiAppointment } from "@/components/services/booking-table";
-import BookingTabs, { BookingTab } from "@/components/services/booking-tabs";
-import UserPagination from "@/components/services/table-pagination";
+import BookingTable, {
+  ApiAppointment,
+} from "@/components/dashboard/services/booking-table";
+import BookingTabs, {
+  BookingTab,
+} from "@/components/dashboard/services/booking-tabs";
+import UserPagination from "@/components/dashboard/services/table-pagination";
 import { useMemo, useState } from "react";
 
 const STATIC_APPOINTMENTS: ApiAppointment[] = [
   {
     _id: "apt-1",
     uid: "BK-1001",
-    customer: { firstName: "Marco", lastName: "Ferretti", email: "marco@ferretti.it" },
+    customer: {
+      firstName: "Marco",
+      lastName: "Ferretti",
+      email: "marco@ferretti.it",
+    },
     professional: { firstName: "Giulia", lastName: "Esposito" },
     salon: { name: "Ferretti Serramenti" },
     scheduledAt: "2026-01-12T09:00:00.000Z",
@@ -21,7 +29,11 @@ const STATIC_APPOINTMENTS: ApiAppointment[] = [
   {
     _id: "apt-2",
     uid: "BK-1002",
-    customer: { firstName: "Luca", lastName: "Bianchi", email: "luca@bianchi.it" },
+    customer: {
+      firstName: "Luca",
+      lastName: "Bianchi",
+      email: "luca@bianchi.it",
+    },
     professional: { firstName: "Roberto", lastName: "Marini" },
     salon: { name: "Solaris Energy" },
     scheduledAt: "2026-01-14T11:30:00.000Z",
@@ -45,7 +57,11 @@ const STATIC_APPOINTMENTS: ApiAppointment[] = [
   {
     _id: "apt-4",
     uid: "BK-1004",
-    customer: { firstName: "Elena", lastName: "Conti", email: "elena@conti.it" },
+    customer: {
+      firstName: "Elena",
+      lastName: "Conti",
+      email: "elena@conti.it",
+    },
     professional: { firstName: "Giulia", lastName: "Esposito" },
     salon: { name: "Infissi Group" },
     scheduledAt: "2026-01-16T15:00:00.000Z",
@@ -71,7 +87,8 @@ export default function ServicesBookingTab() {
 
       if (
         paymentStatusFilter !== "all" &&
-        (item.paymentStatus || "").toLowerCase() !== paymentStatusFilter.toLowerCase()
+        (item.paymentStatus || "").toLowerCase() !==
+          paymentStatusFilter.toLowerCase()
       ) {
         return false;
       }
@@ -146,4 +163,3 @@ export default function ServicesBookingTab() {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import Faq from "@/components/faqs/faqs";
+import Faq from "@/components/dashboard/faqs/faqs";
 
 export default function FaqPage() {
   return <Faq />;

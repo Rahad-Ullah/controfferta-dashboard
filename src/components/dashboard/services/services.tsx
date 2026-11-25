@@ -1,7 +1,7 @@
 "use client";
 
-import AllServicesTab from "@/components/services/all-services-tab";
-import ServicesBookingTab from "@/components/services/services-booking-tab";
+import AllServicesTab from "@/components/dashboard/services/all-services-tab";
+import ServicesBookingTab from "@/components/dashboard/services/services-booking-tab";
 import { CalendarCheck, Scissors } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -16,9 +16,9 @@ function ServicesContent() {
     tabParam === "bookings" ||
     tabParam === "service-bookings";
 
-  const [activeTab, setActiveTab] = useState<"all-services" | "services-booking">(
-    isBookingTab ? "services-booking" : "all-services"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "all-services" | "services-booking"
+  >(isBookingTab ? "services-booking" : "all-services");
 
   useEffect(() => {
     if (isBookingTab) {
@@ -30,7 +30,10 @@ function ServicesContent() {
 
   const handleTabChange = (tab: "all-services" | "services-booking") => {
     setActiveTab(tab);
-    const newUrl = tab === "services-booking" ? "/services?tab=services-booking" : "/services";
+    const newUrl =
+      tab === "services-booking"
+        ? "/services?tab=services-booking"
+        : "/services";
     router.replace(newUrl, { scroll: false });
   };
 
@@ -62,7 +65,9 @@ function ServicesContent() {
           >
             <Scissors
               className={`w-4 h-4 ${
-                activeTab === "all-services" ? "text-[#00BC7D]" : "text-neutral-500"
+                activeTab === "all-services"
+                  ? "text-[#00BC7D]"
+                  : "text-neutral-500"
               }`}
             />
             <span>All Services</span>
@@ -79,7 +84,9 @@ function ServicesContent() {
           >
             <CalendarCheck
               className={`w-4 h-4 ${
-                activeTab === "services-booking" ? "text-[#00BC7D]" : "text-neutral-500"
+                activeTab === "services-booking"
+                  ? "text-[#00BC7D]"
+                  : "text-neutral-500"
               }`}
             />
             <span>Services Booking</span>
@@ -88,7 +95,11 @@ function ServicesContent() {
       </div>
 
       {/* ── Dynamic Tab Content ── */}
-      {activeTab === "all-services" ? <AllServicesTab /> : <ServicesBookingTab />}
+      {activeTab === "all-services" ? (
+        <AllServicesTab />
+      ) : (
+        <ServicesBookingTab />
+      )}
     </div>
   );
 }

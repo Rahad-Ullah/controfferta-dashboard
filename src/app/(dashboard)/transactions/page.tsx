@@ -1,4 +1,4 @@
-import Transactions from "@/components/transactions/transactions";
+import Transactions from "@/components/dashboard/transactions/transactions";
 
 export default function TransactionsPage() {
   return <Transactions />;

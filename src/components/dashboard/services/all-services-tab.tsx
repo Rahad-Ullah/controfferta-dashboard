@@ -1,6 +1,6 @@
 "use client";
 
-import UserPagination from "@/components/services/table-pagination";
+import UserPagination from "@/components/dashboard/services/table-pagination";
 import ModernDropdown from "@/components/ui/modern-dropdown";
 import {
   Clock,
@@ -61,7 +61,11 @@ const STATIC_SERVICES: ApiService[] = [
     priceInUSD: 1200,
     durationInMinutes: 240,
     status: "active",
-    createdBy: { firstName: "Giulia", lastName: "Esposito", email: "giulia@leadpro.it" },
+    createdBy: {
+      firstName: "Giulia",
+      lastName: "Esposito",
+      email: "giulia@leadpro.it",
+    },
     createdAt: "2026-01-08T10:00:00.000Z",
   },
   {
@@ -73,7 +77,11 @@ const STATIC_SERVICES: ApiService[] = [
     priceInUSD: 8400,
     durationInMinutes: 480,
     status: "active",
-    createdBy: { firstName: "Roberto", lastName: "Marini", email: "roberto@solaris.it" },
+    createdBy: {
+      firstName: "Roberto",
+      lastName: "Marini",
+      email: "roberto@solaris.it",
+    },
     createdAt: "2026-01-07T10:00:00.000Z",
   },
   {
@@ -85,7 +93,11 @@ const STATIC_SERVICES: ApiService[] = [
     priceInUSD: 650,
     durationInMinutes: 300,
     status: "inactive",
-    createdBy: { firstName: "CasaMove", lastName: "Traslochi", email: "info@casamove.it" },
+    createdBy: {
+      firstName: "CasaMove",
+      lastName: "Traslochi",
+      email: "info@casamove.it",
+    },
     createdAt: "2026-01-05T10:00:00.000Z",
   },
 ];
@@ -94,7 +106,9 @@ export default function AllServicesTab() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedService, setSelectedService] = useState<ApiService | null>(null);
+  const [selectedService, setSelectedService] = useState<ApiService | null>(
+    null,
+  );
 
   const isLoading = false;
   const pagination = {
@@ -110,9 +124,10 @@ export default function AllServicesTab() {
         const matchesCategory = s.category?.name?.toLowerCase().includes(query);
         const matchesDescription = s.description?.toLowerCase().includes(query);
         const matchesUid = s.uid?.toLowerCase().includes(query);
-        const matchesOwner = `${s.createdBy?.firstName || ""} ${s.createdBy?.lastName || ""}`
-          .toLowerCase()
-          .includes(query);
+        const matchesOwner =
+          `${s.createdBy?.firstName || ""} ${s.createdBy?.lastName || ""}`
+            .toLowerCase()
+            .includes(query);
         const matchesEmail = s.createdBy?.email?.toLowerCase().includes(query);
 
         if (
@@ -127,7 +142,10 @@ export default function AllServicesTab() {
         }
       }
 
-      if (statusFilter !== "all" && s.status?.toLowerCase() !== statusFilter.toLowerCase()) {
+      if (
+        statusFilter !== "all" &&
+        s.status?.toLowerCase() !== statusFilter.toLowerCase()
+      ) {
         return false;
       }
 
@@ -226,16 +244,24 @@ export default function AllServicesTab() {
             <tbody className="divide-y divide-black/5 text-sm text-[#1E1E1E] bg-white">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-neutral-500">
+                  <td
+                    colSpan={8}
+                    className="py-12 text-center text-neutral-500"
+                  >
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-5 h-5 animate-spin text-[#00BC7D]" />
-                      <span className="text-sm font-medium">Loading services...</span>
+                      <span className="text-sm font-medium">
+                        Loading services...
+                      </span>
                     </div>
                   </td>
                 </tr>
               ) : displayedServices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-neutral-500 text-sm font-medium">
+                  <td
+                    colSpan={8}
+                    className="py-12 text-center text-neutral-500 text-sm font-medium"
+                  >
                     No services found matching criteria.
                   </td>
                 </tr>
@@ -248,7 +274,10 @@ export default function AllServicesTab() {
                   const isActive = service.status === "active";
 
                   return (
-                    <tr key={service._id} className="hover:bg-neutral-50/80 transition-colors">
+                    <tr
+                      key={service._id}
+                      className="hover:bg-neutral-50/80 transition-colors"
+                    >
                       {/* Service Info Column */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3.5">
@@ -259,7 +288,9 @@ export default function AllServicesTab() {
                                 alt={service.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                                  (
+                                    e.currentTarget as HTMLImageElement
+                                  ).style.display = "none";
                                 }}
                               />
                             ) : (
@@ -271,7 +302,8 @@ export default function AllServicesTab() {
                               {service.name}
                             </span>
                             <span className="text-xs text-neutral-500 font-normal leading-tight mt-1 line-clamp-1">
-                              {service.description || "No description available"}
+                              {service.description ||
+                                "No description available"}
                             </span>
                           </div>
                         </div>
@@ -313,7 +345,9 @@ export default function AllServicesTab() {
                                 alt={creatorName}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                                  (
+                                    e.currentTarget as HTMLImageElement
+                                  ).style.display = "none";
                                 }}
                               />
                             ) : (
@@ -391,7 +425,8 @@ export default function AllServicesTab() {
                     alt={selectedService.name}
                     className="w-12 h-12 rounded-xl object-cover border border-white/20 shrink-0"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                      (e.currentTarget as HTMLImageElement).style.display =
+                        "none";
                     }}
                   />
                 ) : (
@@ -401,7 +436,9 @@ export default function AllServicesTab() {
                 )}
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-serif font-medium">{selectedService.name}</h3>
+                    <h3 className="text-lg font-serif font-medium">
+                      {selectedService.name}
+                    </h3>
                     {selectedService.uid && (
                       <span className="text-[10px] bg-white/10 text-neutral-300 font-mono px-2 py-0.5 rounded">
                         {selectedService.uid}
@@ -427,24 +464,36 @@ export default function AllServicesTab() {
               {/* Quick Stat Pill Overview */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#F3F0EA] p-4 rounded-xl border border-black/5">
                 <div>
-                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">Status</p>
+                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">
+                    Status
+                  </p>
                   <p className="font-semibold mt-0.5 capitalize text-[#00BC7D]">
                     {selectedService.status}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">Price</p>
+                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">
+                    Price
+                  </p>
                   <p className="font-semibold mt-0.5 text-[#1E1E1E] flex items-center gap-0.5">
                     ${selectedService.priceInUSD ?? 0} USD
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">Duration</p>
-                  <p className="font-semibold mt-0.5">{selectedService.durationInMinutes ?? 0} Mins</p>
+                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">
+                    Duration
+                  </p>
+                  <p className="font-semibold mt-0.5">
+                    {selectedService.durationInMinutes ?? 0} Mins
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">Created</p>
-                  <p className="font-semibold mt-0.5">{formatDate(selectedService.createdAt)}</p>
+                  <p className="text-[10px] text-neutral-500 uppercase font-semibold">
+                    Created
+                  </p>
+                  <p className="font-semibold mt-0.5">
+                    {formatDate(selectedService.createdAt)}
+                  </p>
                 </div>
               </div>
 
@@ -454,7 +503,8 @@ export default function AllServicesTab() {
                   Service Description
                 </p>
                 <p className="text-neutral-700 bg-white p-3.5 rounded-xl border border-black/5 leading-relaxed">
-                  {selectedService.description || "No full description provided for this service."}
+                  {selectedService.description ||
+                    "No full description provided for this service."}
                 </p>
               </div>
 
@@ -490,7 +540,8 @@ export default function AllServicesTab() {
                       alt="Creator"
                       className="w-10 h-10 rounded-full object-cover border border-black/10 shrink-0"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        (e.currentTarget as HTMLImageElement).style.display =
+                          "none";
                       }}
                     />
                   ) : (
@@ -501,7 +552,10 @@ export default function AllServicesTab() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-[#1E1E1E]">
-                        {[selectedService.createdBy?.firstName, selectedService.createdBy?.lastName]
+                        {[
+                          selectedService.createdBy?.firstName,
+                          selectedService.createdBy?.lastName,
+                        ]
                           .filter(Boolean)
                           .join(" ") || "N/A"}
                       </p>
@@ -541,4 +595,3 @@ export default function AllServicesTab() {
     </div>
   );
 }
-
