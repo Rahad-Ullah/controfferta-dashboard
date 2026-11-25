@@ -19,12 +19,14 @@ type ApiEnvelope<T> = {
 export class ApiError extends Error {
   readonly status: number;
   readonly body: unknown;
+  readonly retryAfterSeconds?: number;
 
-  constructor(status: number, message: string, body?: unknown) {
+  constructor(status: number, message: string, body?: unknown, retryAfterSeconds?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -94,7 +96,20 @@ export async function nextFetch<T>({
         ? body.message
         : `API request failed with status ${response.status}`;
 
-    throw new ApiError(response.status, message, body);
+    const retryAfterHeader = Number(response.headers.get("Retry-After"));
+    const retryAfterBody =
+      isRecord(body) && typeof body.retryAfterSeconds === "number"
+        ? body.retryAfterSeconds
+        : undefined;
+
+    throw new ApiError(
+      response.status,
+      message,
+      body,
+      Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+        ? retryAfterHeader
+        : retryAfterBody,
+    );
   }
 
   if (response.status === 204 || body === null) {
