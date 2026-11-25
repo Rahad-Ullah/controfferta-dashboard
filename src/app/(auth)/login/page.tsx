@@ -27,7 +27,7 @@ type LoginResponse = {
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = safeRedirectPath(searchParams.get("redirect"));
+  const redirectTo = safeRedirectPath(searchParams.get("redirect"), "/");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,7 +90,7 @@ function LoginFormContent() {
             "Please verify your account, then try to login again.",
         );
         const verifyQuery = new URLSearchParams({ email: trimmedEmail });
-        if (redirectTo !== "/dashboard")
+        if (redirectTo !== "/")
           verifyQuery.set("redirect", redirectTo);
         router.push(`/verify-otp?${verifyQuery.toString()}`);
         return;

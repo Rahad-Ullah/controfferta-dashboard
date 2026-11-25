@@ -10,16 +10,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <SidebarProvider>
-      <Sidebar />
-      <SidebarInset className="bg-[#EDF0F3] flex flex-col overflow-hidden h-screen">
-        <AdminRouteGuard>
+    <AdminRouteGuard>
+      <SidebarProvider>
+        <Sidebar />
+        <SidebarInset className="bg-[#EDF0F3] flex flex-col overflow-hidden h-screen">
           <Header />
           <main className="flex-1 p-3 sm:p-4 lg:p-6 2xl:p-8 overflow-y-auto min-w-0 flex flex-col">
             {children}
           </main>
-        </AdminRouteGuard>
-      </SidebarInset>
-    </SidebarProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </AdminRouteGuard>
   );
 }
