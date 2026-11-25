@@ -4,7 +4,7 @@ This is the API integration guide for the private Controfferta admin dashboard a
 
 ## Current status
 
-The dashboard is currently a UI prototype. The shared SWR/API foundation is implemented in `src/components/swr-config.tsx`, `src/lib/api/`, and `src/lib/env-config.ts`; endpoint-specific screen wiring, authentication cookie helpers, and the socket provider are still pending.
+The shared SWR/API foundation is implemented in `src/components/swr-config.tsx`, `src/lib/api/`, and `src/lib/env-config.ts`. The Users screen is connected to the admin API with client-side SWR fetching, search, status filters, and status updates. Other screens remain on their existing sample data until their endpoint contracts are confirmed.
 
 When a screen is connected, migrate one screen at a time. Keep all screens that are not connected on their existing sample data.
 
@@ -119,6 +119,15 @@ Expected error statuses are 400 for validation, 401 for a missing or invalid ses
 | Services and bookings | service/booking modules, after backend confirmation |
 
 These mappings are starting points, not contracts. Confirm each route in the backend before implementing it.
+
+## Connected screen contracts
+
+Users currently uses the following confirmed backend routes:
+
+- `GET /users/all?limit=1000` for the SWR list query.
+- `PATCH /users/:id/status` with `{ status: "active" | "suspended" | "banned" }` for status changes.
+
+The API response is unwrapped by `nextFetch`, so the Users component receives the `data` array directly. Provider balances are read from the populated `roleRef.creditBalance` field; accounts without a provider profile display no balance. Search and status filtering are applied to the fetched client-side list.
 
 ## Live notifications
 

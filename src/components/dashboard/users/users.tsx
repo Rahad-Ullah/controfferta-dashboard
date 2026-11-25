@@ -7,136 +7,117 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
 import toast from "react-hot-toast";
 
-type UserStatus = "Active" | "Suspended";
+import { nextFetch } from "@/lib/api/fetcher";
+import { apiKeys } from "@/lib/api/keys";
+
+type UserStatus = "active" | "suspended" | "banned";
 
 interface ManagedUser {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   avatar: string;
-  credits: number;
+  credits?: number;
   joinDate: string;
   status: UserStatus;
-  phone?: string;
+  phone?: { countryCode?: string; number?: string };
   company?: string;
+  image?: string;
 }
 
-const INITIAL_USERS: ManagedUser[] = [
-  {
-    id: "1",
-    name: "Marco Ferretti",
-    email: "marco@ferretti.it",
-    avatar: "M",
-    credits: 285,
-    joinDate: "Jan 1 2026",
-    status: "Active",
-    phone: "+39 02 1234567",
-    company: "Ferretti Windows",
-  },
-  {
-    id: "2",
-    name: "Giulia Esposito",
-    email: "g.esposito@leadpro.it",
-    avatar: "G",
-    credits: 285,
-    joinDate: "Dec 15 2025",
-    status: "Active",
-    phone: "+39 06 9876543",
-    company: "LeadPro Italy",
-  },
-  {
-    id: "3",
-    name: "Luca Bianchi",
-    email: "l.bianchi@solargroup.it",
-    avatar: "L",
-    credits: 150,
-    joinDate: "Dec 20 2025",
-    status: "Active",
-    phone: "+39 011 5554321",
-    company: "SolarGroup SRL",
-  },
-  {
-    id: "4",
-    name: "Sara Conti",
-    email: "s.conti@edil.it",
-    avatar: "S",
-    credits: 0,
-    joinDate: "Nov 5 2025",
-    status: "Suspended",
-    phone: "+39 055 4443322",
-    company: "Edil Costruzioni",
-  },
-  {
-    id: "5",
-    name: "Marco Ferretti",
-    email: "marco@ferretti.it",
-    avatar: "M",
-    credits: 285,
-    joinDate: "Jan 1 2026",
-    status: "Active",
-    phone: "+39 02 1234567",
-    company: "Ferretti Windows",
-  },
-  {
-    id: "6",
-    name: "Giulia Esposito",
-    email: "g.esposito@leadpro.it",
-    avatar: "G",
-    credits: 285,
-    joinDate: "Dec 15 2025",
-    status: "Active",
-    phone: "+39 06 9876543",
-    company: "LeadPro Italy",
-  },
-  {
-    id: "7",
-    name: "Sara Conti",
-    email: "s.conti@edil.it",
-    avatar: "S",
-    credits: 0,
-    joinDate: "Nov 5 2025",
-    status: "Suspended",
-    phone: "+39 055 4443322",
-    company: "Edil Costruzioni",
-  },
-];
+interface ApiUser extends ManagedUser {
+  firstName?: string;
+  lastName?: string;
+  createdAt?: string;
+  roleRef?: { businessName?: string; creditBalance?: number } | string;
+}
+
+const PAGE_SIZE = 1000;
+
+function toManagedUser(user: ApiUser): ManagedUser {
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed user";
+  const roleRef = typeof user.roleRef === "object" ? user.roleRef : undefined;
+
+  return {
+    ...user,
+    credits: user.credits ?? roleRef?.creditBalance,
+    name,
+    avatar: name.charAt(0).toUpperCase(),
+    company: roleRef?.businessName,
+    joinDate: user.createdAt
+      ? new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(user.createdAt))
+      : "—",
+  };
+}
+
+function statusLabel(status: UserStatus) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<ManagedUser[]>(INITIAL_USERS);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Suspended">("All");
+  const [statusFilter, setStatusFilter] = useState<"All" | UserStatus>("All");
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
 
-  // Filtered users list
+  const {
+    data: apiUsers,
+    error,
+    isLoading,
+    isValidating,
+    mutate: mutateUsers,
+  } = useSWR<ApiUser[]>(apiKeys.users(`limit=${PAGE_SIZE}`));
+
+  const { trigger: updateStatus, isMutating: isUpdatingStatus } = useSWRMutation(
+    apiKeys.users(),
+    async (_key, { arg }: { arg: { id: string; status: UserStatus } }) =>
+      nextFetch<ApiUser>({
+        url: apiKeys.userStatus(arg.id),
+        method: "PATCH",
+        payload: { status: arg.status },
+      }),
+    { populateCache: false, revalidate: false },
+  );
+
+  const users = useMemo(() => (apiUsers ?? []).map(toManagedUser), [apiUsers]);
+
   const filteredUsers = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
     return users.filter((u) => {
       const matchesSearch =
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase());
+        !normalizedQuery ||
+        u.name.toLowerCase().includes(normalizedQuery) ||
+        u.email.toLowerCase().includes(normalizedQuery);
       const matchesStatus =
         statusFilter === "All" ? true : u.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [users, searchQuery, statusFilter]);
 
-  // Handle status toggle (Suspend / Reactivate)
-  const toggleUserStatus = (id: string) => {
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === id) {
-          const newStatus: UserStatus = u.status === "Active" ? "Suspended" : "Active";
-          if (newStatus === "Suspended") {
-            toast.success(`${u.name} has been suspended.`);
-          } else {
-            toast.success(`${u.name} has been reactivated.`);
-          }
-          return { ...u, status: newStatus };
-        }
-        return u;
-      })
-    );
+  const toggleUserStatus = async (user: ManagedUser) => {
+    const nextStatus: UserStatus = user.status === "active" ? "suspended" : "active";
+
+    try {
+      await updateStatus(
+        { id: user._id, status: nextStatus },
+        { throwOnError: true },
+      );
+      await mutateUsers();
+      setSelectedUser(null);
+      toast.success(
+        `${user.name} has been ${nextStatus === "active" ? "reactivated" : "suspended"}.`,
+      );
+    } catch (statusError) {
+      toast.error(
+        statusError instanceof Error
+          ? statusError.message
+          : "Unable to update user status.",
+      );
+    }
   };
 
   return (
@@ -147,7 +128,8 @@ export default function UserManagementPage() {
           User Management
         </h1>
         <p className="text-sm text-slate-500 font-normal mt-1">
-          5 registered users
+          {isLoading ? "Loading users..." : `${users.length} registered users`}
+          {isValidating && !isLoading ? " · Syncing..." : ""}
         </p>
       </div>
 
@@ -160,7 +142,7 @@ export default function UserManagementPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search user..."
+              placeholder="Search by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-slate-50/70 border border-slate-200/80 rounded-full text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
@@ -169,7 +151,7 @@ export default function UserManagementPage() {
 
           {/* Status Filter Pill Buttons */}
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            {(["All", "Active", "Suspended"] as const).map((tab) => {
+            {(["All", "active", "suspended", "banned"] as const).map((tab) => {
               const active = statusFilter === tab;
               return (
                 <button
@@ -182,7 +164,7 @@ export default function UserManagementPage() {
                       : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
                   }`}
                 >
-                  {tab}
+                  {tab === "All" ? "All" : statusLabel(tab)}
                 </button>
               );
             })}
@@ -190,7 +172,13 @@ export default function UserManagementPage() {
         </div>
 
         {/* ── Table Container ── */}
-        <div className="overflow-x-auto">
+        {error ? (
+          <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-8 text-center text-sm text-rose-600">
+            Failed to load users. {error.message}
+          </div>
+        ) : isLoading ? (
+          <div className="py-12 text-center text-sm text-slate-400">Loading users...</div>
+        ) : <div className="overflow-x-auto">
           <table className="w-full table-fixed text-left border-collapse min-w-[720px]">
             <thead>
               <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -209,12 +197,12 @@ export default function UserManagementPage() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user, idx) => {
-                  const isActive = user.status === "Active";
+                filteredUsers.map((user) => {
+                  const isActive = user.status === "active";
 
                   return (
                     <tr
-                      key={`${user.id}-${idx}`}
+                      key={user._id}
                       className="hover:bg-slate-50/60 transition-colors"
                     >
                       {/* USER */}
@@ -236,7 +224,7 @@ export default function UserManagementPage() {
 
                       {/* CREDITS */}
                       <td className="py-4 px-3 font-semibold text-sm text-[#00BC7D] whitespace-nowrap">
-                        {user.credits} credits
+                        {user.credits === undefined ? "—" : `${user.credits} credits`}
                       </td>
 
                       {/* JOIN DATE */}
@@ -273,7 +261,7 @@ export default function UserManagementPage() {
                           {isActive ? (
                             <button
                               type="button"
-                              onClick={() => toggleUserStatus(user.id)}
+                              onClick={() => toggleUserStatus(user)}
                               className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-500 border border-rose-100 transition-colors cursor-pointer"
                             >
                               Suspend
@@ -281,10 +269,11 @@ export default function UserManagementPage() {
                           ) : (
                             <button
                               type="button"
-                              onClick={() => toggleUserStatus(user.id)}
+                              disabled={user.status === "banned" || isUpdatingStatus}
+                              onClick={() => toggleUserStatus(user)}
                               className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#E6F8F2] hover:bg-[#d4f5e9] text-[#00BC7D] border border-emerald-100 transition-colors cursor-pointer"
                             >
-                              Reactivate
+                              {user.status === "banned" ? "Banned" : "Reactivate"}
                             </button>
                           )}
                         </div>
@@ -295,11 +284,11 @@ export default function UserManagementPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </div>}
 
         {/* ── Table Footer / Pagination ── */}
         <div className="pt-6 flex items-center justify-between text-xs text-slate-400">
-          <span>Showing 1-5 of 48 leads</span>
+          <span>Showing {filteredUsers.length} of {users.length} users</span>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -354,7 +343,7 @@ export default function UserManagementPage() {
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <span className="text-slate-400 block mb-1">Available Credits</span>
-                  <span className="font-semibold text-[#00BC7D]">{selectedUser.credits} credits</span>
+                  <span className="font-semibold text-[#00BC7D]">{selectedUser.credits === undefined ? "—" : `${selectedUser.credits} credits`}</span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <span className="text-slate-400 block mb-1">Join Date</span>
@@ -364,10 +353,10 @@ export default function UserManagementPage() {
                   <span className="text-slate-400 block mb-1">Current Status</span>
                   <span
                     className={`font-semibold ${
-                      selectedUser.status === "Active" ? "text-[#00BC7D]" : "text-rose-500"
+                      selectedUser.status === "active" ? "text-[#00BC7D]" : "text-rose-500"
                     }`}
                   >
-                    {selectedUser.status}
+                    {statusLabel(selectedUser.status)}
                   </span>
                 </div>
               </div>
@@ -385,16 +374,15 @@ export default function UserManagementPage() {
               <button
                 type="button"
                 onClick={() => {
-                  toggleUserStatus(selectedUser.id);
-                  setSelectedUser(null);
+                  void toggleUserStatus(selectedUser);
                 }}
                 className={`px-4 py-2 rounded-xl text-xs font-semibold text-white transition-colors cursor-pointer ${
-                  selectedUser.status === "Active"
+                  selectedUser.status === "active"
                     ? "bg-rose-500 hover:bg-rose-600"
                     : "bg-[#00BC7D] hover:bg-[#00a86b]"
                 }`}
               >
-                {selectedUser.status === "Active" ? "Suspend User" : "Reactivate User"}
+                {selectedUser.status === "active" ? "Suspend User" : "Reactivate User"}
               </button>
             </div>
           </div>
