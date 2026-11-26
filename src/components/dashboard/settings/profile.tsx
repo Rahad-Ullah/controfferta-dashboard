@@ -1,8 +1,38 @@
 "use client";
 
 import { Check, Eye, EyeOff } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { apiKeys } from "@/lib/api/keys";
+import { nextFetch } from "@/lib/api/fetcher";
+import {
+  countryDialCodes,
+  getMaxPhoneNumberDigits,
+  MIN_PHONE_NUMBER_DIGITS,
+  type CountryDialCode,
+} from "@/lib/country-dial-codes";
+import { CountryPhoneInput } from "@/components/shared/country-phone-input";
+import type { Category } from "@/types/category.interface";
+
+type ProfileData = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
+  phone?: { countryCode?: string; number?: string };
+  roleRef?: {
+    interestedCategories?: Array<string | { _id: string }>;
+  };
+};
+
+type ProfileUpdatePayload = {
+  firstName: string;
+  lastName: string;
+  phone: { countryCode: string; number: string };
+  interestedCategories?: string[];
+};
 
 const AVAILABLE_CATEGORIES = [
   "Windows & Doors",
@@ -17,9 +47,12 @@ export default function SettingsPage() {
   // ── Profile form state ──
   const [firstName, setFirstName] = useState("Marco");
   const [lastName, setLastName] = useState("Ferretti");
-  const [company, setCompany] = useState("Ferretti Serramenti Srl");
   const [email, setEmail] = useState("marco@ferretti.it");
-  const [phone, setPhone] = useState("+39 333 123 4567");
+  const [phoneNumber, setPhoneNumber] = useState("333 123 4567");
+  const [selectedCountry, setSelectedCountry] = useState<CountryDialCode>(
+    countryDialCodes.find((country) => country.iso === "IT") ??
+      countryDialCodes[0],
+  );
 
   // Selected categories of interest
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
@@ -31,7 +64,6 @@ export default function SettingsPage() {
   const [profileErrors, setProfileErrors] = useState<{
     firstName?: string;
     lastName?: string;
-    company?: string;
     email?: string;
     phone?: string;
     categories?: string;
@@ -42,12 +74,60 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "security">(
+    "profile",
+  );
 
   // Security validation errors
   const [securityErrors, setSecurityErrors] = useState<{
     newPassword?: string;
     confirmPassword?: string;
   }>({});
+
+  const { data: profileData } = useSWR<ProfileData>(apiKeys.me);
+  const { data: categories = [] } = useSWR<Category[]>(
+    apiKeys.categories("limit=1000"),
+  );
+  const { trigger: updateProfile, isMutating: isUpdatingProfile } =
+    useSWRMutation(
+      apiKeys.me,
+      (url: string, { arg }: { arg: ProfileUpdatePayload }) =>
+        nextFetch<ProfileData>({ url, method: "PATCH", payload: arg }),
+      { revalidate: true },
+    );
+  const isProvider = profileData?.role === "provider";
+
+  useEffect(() => {
+    if (!profileData) return;
+
+    setFirstName(profileData.firstName ?? "");
+    setLastName(profileData.lastName ?? "");
+    setEmail(profileData.email ?? "");
+    const profileCountryCode = profileData.phone?.countryCode;
+    const profileCountry =
+      countryDialCodes.find(
+        (country) =>
+          country.dialCode === profileCountryCode && country.iso === "US",
+      ) ??
+      countryDialCodes.find(
+        (country) => country.dialCode === profileCountryCode,
+      );
+    if (profileCountry) setSelectedCountry(profileCountry);
+    setPhoneNumber(profileData.phone?.number ?? "");
+
+    if (profileData.roleRef?.interestedCategories && categories.length > 0) {
+      const categoryIds = new Set(
+        profileData.roleRef.interestedCategories.map((category) =>
+          typeof category === "string" ? category : category._id,
+        ),
+      );
+      setSelectedCategories(
+        categories
+          .filter((category) => categoryIds.has(category._id))
+          .map((category) => category.name),
+      );
+    }
+  }, [profileData, categories]);
 
   // Toggle category of interest
   const toggleCategory = (category: string) => {
@@ -63,7 +143,7 @@ export default function SettingsPage() {
   };
 
   // ── Handle Save Profile Changes ──
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const errors: typeof profileErrors = {};
@@ -76,34 +156,69 @@ export default function SettingsPage() {
       errors.lastName = "Last name is required";
     }
 
-    if (!company.trim()) {
-      errors.company = "Company name is required";
-    }
-
     if (!email.trim()) {
       errors.email = "Email address is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       errors.email = "Please enter a valid email address";
     }
 
-    if (!phone.trim()) {
+    if (!phoneNumber.trim()) {
       errors.phone = "Phone number is required";
-    } else if (phone.replace(/\D/g, "").length < 6) {
-      errors.phone = "Please enter a valid phone number";
+    } else {
+      const phoneDigits = phoneNumber.replace(/\D/g, "");
+      const maxPhoneDigits = getMaxPhoneNumberDigits(selectedCountry);
+
+      if (phoneDigits.length < MIN_PHONE_NUMBER_DIGITS) {
+        errors.phone = `Phone number must contain at least ${MIN_PHONE_NUMBER_DIGITS} digits`;
+      } else if (phoneDigits.length > maxPhoneDigits) {
+        errors.phone = `Phone number must contain no more than ${maxPhoneDigits} digits for ${selectedCountry.name}`;
+      }
     }
 
-    if (selectedCategories.length === 0) {
+    if (isProvider && selectedCategories.length === 0) {
       errors.categories = "Please select at least one category of interest";
     }
 
     if (Object.keys(errors).length > 0) {
       setProfileErrors(errors);
-      toast.error("Please fill in all required profile fields correctly");
       return;
     }
 
-    setProfileErrors({});
-    toast.success("Profile saved successfully");
+    const payload: ProfileUpdatePayload = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: {
+        countryCode: selectedCountry.dialCode,
+        number: phoneNumber.replace(/\D/g, ""),
+      },
+    };
+
+    if (isProvider) {
+      const categoryIds = selectedCategories
+        .map(
+          (categoryName) =>
+            categories.find((category) => category.name === categoryName)?._id,
+        )
+        .filter((categoryId): categoryId is string => Boolean(categoryId));
+
+      if (categoryIds.length !== selectedCategories.length) {
+        toast.error("Unable to resolve the selected categories");
+        return;
+      }
+
+      payload.interestedCategories = categoryIds;
+    }
+
+    try {
+      await updateProfile(
+        payload,
+        { throwOnError: true },
+      );
+      setProfileErrors({});
+      toast.success("Profile updated successfully");
+    } catch {
+      toast.error("Unable to update your profile");
+    }
   };
 
   // ── Handle Update Password (Security) ──
@@ -126,7 +241,6 @@ export default function SettingsPage() {
 
     if (Object.keys(errors).length > 0) {
       setSecurityErrors(errors);
-      toast.error("Please check the password fields");
       return;
     }
 
@@ -146,9 +260,44 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Main Two-Column Layout with 2 Separate Forms & Buttons ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+      <div className="mx-auto w-full max-w-4xl">
+        <div
+          className="mb-5 flex w-full rounded-xl border border-slate-200/80 bg-white p-1 shadow-2xs"
+          role="tablist"
+          aria-label="Settings sections"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "profile"}
+            onClick={() => setActiveTab("profile")}
+            className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+              activeTab === "profile"
+                ? "bg-[#E6F8F2] text-[#008F63] shadow-2xs"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            Update Profile
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "security"}
+            onClick={() => setActiveTab("security")}
+            className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+              activeTab === "security"
+                ? "bg-[#E6F8F2] text-[#008F63] shadow-2xs"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            Change Password
+          </button>
+        </div>
+
+        {activeTab === "profile" ? (
+          <>
         {/* ── Section 1: Profile Card (Takes 3 of 5 cols) ── */}
-        <div className="lg:col-span-3 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/70 shadow-2xs">
+        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-slate-200/70 shadow-2xs">
           <form onSubmit={handleProfileSubmit} className="space-y-5" noValidate>
             {/* First Name & Last Name (2-Col Grid) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -211,29 +360,10 @@ export default function SettingsPage() {
 
             {/* Company */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
-                Company <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Ferretti Serramenti Srl"
-                value={company}
-                onChange={(e) => {
-                  setCompany(e.target.value);
-                  if (profileErrors.company) {
-                    setProfileErrors((prev) => ({ ...prev, company: undefined }));
-                  }
-                }}
-                className={`w-full border rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none transition-all ${
-                  profileErrors.company
-                    ? "border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-400/40"
-                    : "bg-slate-50/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
-                }`}
-              />
-              {profileErrors.company && (
+              {false && (
                 <p className="text-xs text-rose-500 font-medium mt-1.5 flex items-center gap-1">
                   <span>•</span>
-                  <span>{profileErrors.company}</span>
+                  <span />
                 </p>
               )}
             </div>
@@ -246,6 +376,8 @@ export default function SettingsPage() {
               <input
                 type="email"
                 placeholder="e.g. marco@ferretti.it"
+                  readOnly
+                  title="Email address cannot be changed here"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -256,7 +388,7 @@ export default function SettingsPage() {
                 className={`w-full border rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none transition-all ${
                   profileErrors.email
                     ? "border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-400/40"
-                    : "bg-slate-50/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
+                    : "bg-slate-100/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
                 }`}
               />
               {profileErrors.email && (
@@ -272,21 +404,17 @@ export default function SettingsPage() {
               <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
                 Phone <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g. +39 333 123 4567"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
+              <CountryPhoneInput
+                country={selectedCountry}
+                phoneNumber={phoneNumber}
+                error={profileErrors.phone}
+                onCountryChange={setSelectedCountry}
+                onPhoneNumberChange={(value) => {
+                  setPhoneNumber(value);
                   if (profileErrors.phone) {
                     setProfileErrors((prev) => ({ ...prev, phone: undefined }));
                   }
                 }}
-                className={`w-full border rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none transition-all ${
-                  profileErrors.phone
-                    ? "border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-400/40"
-                    : "bg-slate-50/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
-                }`}
               />
               {profileErrors.phone && (
                 <p className="text-xs text-rose-500 font-medium mt-1.5 flex items-center gap-1">
@@ -296,7 +424,8 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* Categories of interest */}
+            {isProvider && (
+            /* Categories of interest */
             <div className="pt-2">
               <label className="text-xs font-semibold text-slate-700 mb-3 block">
                 Categories of interest <span className="text-rose-500">*</span>
@@ -324,7 +453,7 @@ export default function SettingsPage() {
                             : "border border-slate-300 bg-white"
                         }`}
                       >
-                        {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                        {isChecked && <Check className="w-3 h-3 stroke-3" />}
                       </span>
                       <span>{cat}</span>
                     </button>
@@ -338,24 +467,31 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
+            )}
 
             {/* Profile Section Submit Button */}
             <div className="pt-3 border-t border-slate-100">
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer text-center"
+                disabled={isUpdatingProfile}
+                className="w-full py-3.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer text-center disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Save Profile
+                {isUpdatingProfile ? "Updating..." : "Save Profile"}
               </button>
             </div>
           </form>
         </div>
+        <>
 
         {/* ── Section 2: Security Card (Takes 2 of 5 cols) ── */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/70 shadow-2xs">
+        </>
+          </>
+        ) : (
+          <>
+        <div className="mx-auto w-full max-w-2xl bg-white rounded-2xl p-5 sm:p-7 border border-slate-200/70 shadow-2xs">
           <form onSubmit={handleSecuritySubmit} className="space-y-5" noValidate>
             <h2 className="font-bold text-sm sm:text-base text-[#0F172A]">
-              Security
+              Change Password
             </h2>
 
             {/* New Password */}
@@ -461,6 +597,8 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

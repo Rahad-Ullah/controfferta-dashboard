@@ -6,6 +6,13 @@ export type CountryDialCode = {
   flag: string;
 };
 
+/** E.164 allows up to 15 digits for the country code and subscriber number. */
+export const MIN_PHONE_NUMBER_DIGITS = 6;
+
+export function getMaxPhoneNumberDigits(country: CountryDialCode): number {
+  return 15 - country.dialCode.replace(/\D/g, "").length;
+}
+
 /** Static dial-code list for phone country selectors. Not from the API. */
 export const countryDialCodes: CountryDialCode[] = [
   { iso: "AF", name: "Afghanistan", dialCode: "+93", flag: "🇦🇫" },
