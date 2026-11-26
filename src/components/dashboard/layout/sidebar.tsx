@@ -47,7 +47,7 @@ const menuItems: MenuItem[] = [
   { name: "Lead", path: "/leads", icon: AlignLeft },
   { name: "Categories", path: "/categories", icon: Tag },
   { name: "Blog", path: "/blogs", icon: SquarePen },
-  { name: "Credit Packages", path: "/pricing", icon: Clock },
+  { name: "Credit Packages", path: "/credit-packages", icon: Clock },
   { name: "Transactions", path: "/transactions", icon: Download },
   { name: "Notifications", path: "/notifications", icon: Bell, badge: 3 },
   { name: "Profile", path: "/settings", icon: User },

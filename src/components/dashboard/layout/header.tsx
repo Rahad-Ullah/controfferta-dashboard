@@ -16,7 +16,7 @@ const PAGE_TITLE_MAP: Record<string, string> = {
   "/customers": "Lead Management",
   "/categories": "Categories",
   "/blogs": "Blog",
-  "/pricing": "Credit Packages",
+  "/credit-packages": "Credit Packages",
   "/transactions": "Transactions",
   "/notifications": "Notifications",
   "/settings": "Profile",
