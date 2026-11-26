@@ -24,6 +24,7 @@ import {
   SearchableSelect,
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type StatusFilter = "all" | LeadStatus;
 
@@ -230,20 +231,29 @@ export default function LeadsDashboard() {
           />
         </div>
 
-        <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-100 pb-3 text-xs font-medium sm:text-sm">
+        <Tabs
+          value={statusFilter}
+          onValueChange={(value) => selectStatus(value as StatusFilter)}
+          className="w-full"
+        >
+          <TabsList className="h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b border-slate-100 bg-transparent p-0 text-xs font-medium sm:text-sm">
             {(["all", "pending", "accepted", "rejected", "closed"] as const).map(
               (status) => (
-                <button
+                <TabsTrigger
                   key={status}
-                  type="button"
-                  onClick={() => selectStatus(status)}
-                  className={`-mb-3.5 cursor-pointer whitespace-nowrap border-b-2 pb-1 capitalize transition-colors ${statusFilter === status ? "border-[#00BC7D] font-bold text-[#00BC7D]" : "border-transparent text-slate-600 hover:text-slate-900"}`}
+                  value={status}
+                  className="group relative -mb-px h-auto flex-none cursor-pointer rounded-none border-0 bg-transparent px-0 pb-3 pt-0 capitalize text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:bg-transparent data-[state=active]:font-bold data-[state=active]:text-[#00BC7D] data-[state=active]:shadow-none"
                 >
                   {status === "all" ? "All" : STATUS_LABELS[status]}
-                </button>
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[#00BC7D] opacity-0 transition-opacity group-data-[state=active]:opacity-100"
+                  />
+                </TabsTrigger>
               ),
             )}
-        </div>
+          </TabsList>
+        </Tabs>
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-7xl border-collapse text-left">
