@@ -14,6 +14,12 @@ import {
   type CountryDialCode,
 } from "@/lib/country-dial-codes";
 import { CountryPhoneInput } from "@/components/shared/country-phone-input";
+import {
+  changePasswordFieldErrors,
+  changePasswordFields,
+  mapChangePasswordApiError,
+  type ChangePasswordFields,
+} from "@/schemas/change-password";
 import type { Category } from "@/types/category.interface";
 
 type ProfileData = {
@@ -70,8 +76,10 @@ export default function SettingsPage() {
   }>({});
 
   // ── Security form state ──
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "security">(
@@ -79,10 +87,9 @@ export default function SettingsPage() {
   );
 
   // Security validation errors
-  const [securityErrors, setSecurityErrors] = useState<{
-    newPassword?: string;
-    confirmPassword?: string;
-  }>({});
+  const [securityErrors, setSecurityErrors] = useState<
+    Partial<Record<keyof ChangePasswordFields, string>>
+  >({});
 
   const { data: profileData } = useSWR<ProfileData>(apiKeys.me);
   const { data: categories = [] } = useSWR<Category[]>(
@@ -94,6 +101,13 @@ export default function SettingsPage() {
       (url: string, { arg }: { arg: ProfileUpdatePayload }) =>
         nextFetch<ProfileData>({ url, method: "PATCH", payload: arg }),
       { revalidate: true },
+    );
+  const { trigger: changePassword, isMutating: isChangingPassword } =
+    useSWRMutation(
+      apiKeys.authChangePassword,
+      (url: string, { arg }: { arg: ChangePasswordFields }) =>
+        nextFetch<null>({ url, method: "POST", payload: arg }),
+      { revalidate: false },
     );
   const isProvider = profileData?.role === "provider";
 
@@ -225,29 +239,38 @@ export default function SettingsPage() {
   const handleSecuritySubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const errors: typeof securityErrors = {};
+    const fields: ChangePasswordFields = {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    };
+    const result = changePasswordFields.safeParse(fields);
 
-    if (!newPassword) {
-      errors.newPassword = "New password is required";
-    } else if (newPassword.length < 6) {
-      errors.newPassword = "Password must be at least 6 characters";
-    }
-
-    if (!confirmPassword) {
-      errors.confirmPassword = "Confirm password is required";
-    } else if (newPassword !== confirmPassword) {
-      errors.confirmPassword = "Passwords do not match";
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setSecurityErrors(errors);
+    if (!result.success) {
+      setSecurityErrors(changePasswordFieldErrors(result.error));
       return;
     }
 
-    setSecurityErrors({});
-    toast.success("Password updated successfully");
-    setNewPassword("");
-    setConfirmPassword("");
+    void (async () => {
+      try {
+        await changePassword(result.data, { throwOnError: true });
+        setSecurityErrors({});
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        toast.success("Password updated successfully");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to update password";
+        const fieldErrors = mapChangePasswordApiError(message);
+
+        if (fieldErrors) {
+          setSecurityErrors(fieldErrors);
+        } else {
+          toast.error(message);
+        }
+      }
+    })();
   };
 
   return (
@@ -494,6 +517,52 @@ export default function SettingsPage() {
               Change Password
             </h2>
 
+            {/* Current Password */}
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                Current Password <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrentPassword ? "text" : "password"}
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    if (securityErrors.currentPassword) {
+                      setSecurityErrors((prev) => ({
+                        ...prev,
+                        currentPassword: undefined,
+                      }));
+                    }
+                  }}
+                  className={`w-full border rounded-2xl pl-4 pr-11 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none transition-all ${
+                    securityErrors.currentPassword
+                      ? "border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-400/40"
+                      : "bg-slate-50/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword((prev) => !prev)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer p-1"
+                  title={showCurrentPassword ? "Hide password" : "Show password"}
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {securityErrors.currentPassword && (
+                <p className="text-xs text-rose-500 font-medium mt-1.5 flex items-center gap-1">
+                  <span>•</span>
+                  <span>{securityErrors.currentPassword}</span>
+                </p>
+              )}
+            </div>
+
             {/* New Password */}
             <div>
               <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
@@ -590,9 +659,10 @@ export default function SettingsPage() {
             <div className="pt-3 border-t border-slate-100">
               <button
                 type="submit"
+                disabled={isChangingPassword}
                 className="w-full py-3.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer text-center"
               >
-                Update Password
+                {isChangingPassword ? "Updating..." : "Update Password"}
               </button>
             </div>
           </form>

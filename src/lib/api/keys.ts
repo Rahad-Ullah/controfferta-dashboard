@@ -3,6 +3,7 @@ export const apiKeys = {
   authForgotPassword: "/auth/forget-password",
   authVerifyEmail: "/auth/verify-email",
   authResetPassword: "/auth/reset-password",
+  authChangePassword: "/auth/change-password",
   authLogout: "/auth/logout",
   me: "/users/me",
   users: (query = "") => `/users/all${query ? `?${query}` : ""}`,
