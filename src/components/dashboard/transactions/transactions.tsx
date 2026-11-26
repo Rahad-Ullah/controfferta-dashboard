@@ -1,146 +1,201 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { apiKeys } from "@/lib/api/keys";
+import TransactionViewDialog, {
+  type TransactionItem,
+} from "@/components/dashboard/transactions/transaction-view-dialog";
+import type { CreditPackage } from "@/types/credit-package.interface";
+import { formatLocalDateTime } from "@/utils/datetime";
 
-interface TransactionItem {
-  id: string;
-  txnId: string;
-  date: string;
-  buyerCompany: string;
-  package: string;
-  amount: number;
-  status: "Paid" | "Pending" | "Failed";
+interface ProviderUser {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: { countryCode?: string; number?: string };
+  roleRef?: { _id?: string; businessName?: string };
 }
 
-const INITIAL_TRANSACTIONS: TransactionItem[] = [
-  {
-    id: "1",
-    txnId: "TXN-88213-A",
-    date: "Sep 12, 2026",
-    buyerCompany: "Infissi Group Sri",
-    package: "Growth",
-    amount: 129,
-    status: "Paid",
-  },
-  {
-    id: "2",
-    txnId: "TXN-88213-A",
-    date: "Sep 12, 2026",
-    buyerCompany: "Infissi Group Sri",
-    package: "Growth",
-    amount: 129,
-    status: "Paid",
-  },
-  {
-    id: "3",
-    txnId: "TXN-88213-A",
-    date: "Sep 12, 2026",
-    buyerCompany: "Infissi Group Sri",
-    package: "Growth",
-    amount: 129,
-    status: "Paid",
-  },
-  {
-    id: "4",
-    txnId: "TXN-88213-A",
-    date: "Sep 12, 2026",
-    buyerCompany: "Infissi Group Sri",
-    package: "Growth",
-    amount: 129,
-    status: "Paid",
-  },
-  {
-    id: "5",
-    txnId: "TXN-88213-A",
-    date: "Sep 12, 2026",
-    buyerCompany: "Infissi Group Sri",
-    package: "Growth",
-    amount: 129,
-    status: "Paid",
-  },
-  {
-    id: "6",
-    txnId: "TXN-88213-A",
-    date: "Sep 12, 2026",
-    buyerCompany: "Infissi Group Sri",
-    package: "Growth",
-    amount: 129,
-    status: "Paid",
-  },
-  {
-    id: "7",
-    txnId: "TXN-88214-B",
-    date: "Sep 10, 2026",
-    buyerCompany: "CasaMove Traslochi",
-    package: "Starter",
-    amount: 49,
-    status: "Paid",
-  },
-  {
-    id: "8",
-    txnId: "TXN-88215-C",
-    date: "Sep 09, 2026",
-    buyerCompany: "Solaris Energy",
-    package: "Professional",
-    amount: 349,
-    status: "Paid",
-  },
-  {
-    id: "9",
-    txnId: "TXN-88216-D",
-    date: "Sep 08, 2026",
-    buyerCompany: "BuildRight Sri",
-    package: "Enterprise",
-    amount: 599,
-    status: "Paid",
-  },
-  {
-    id: "10",
-    txnId: "TXN-88217-E",
-    date: "Sep 07, 2026",
-    buyerCompany: "Edilizia Moderna",
-    package: "Growth",
-    amount: 129,
-    status: "Pending",
-  },
-  {
-    id: "11",
-    txnId: "TXN-88218-F",
-    date: "Sep 05, 2026",
-    buyerCompany: "Termoidraulica Roma",
-    package: "Starter",
-    amount: 49,
-    status: "Paid",
-  },
-  {
-    id: "12",
-    txnId: "TXN-88219-G",
-    date: "Sep 03, 2026",
-    buyerCompany: "Verde Solar Nord",
-    package: "Professional",
-    amount: 349,
-    status: "Paid",
-  },
-];
-
-const STATUS_OPTIONS = ["All statuses", "Paid", "Pending", "Failed"];
+const STATUS_OPTIONS = ["All statuses", "Pending", "Completed", "Failed", "Cancelled"];
 
 export default function TransactionsPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearch(searchQuery.trim()),
+      400,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  const purchaseParams = new URLSearchParams({ limit: "100" });
+  if (debouncedSearch) purchaseParams.set("searchTerm", debouncedSearch);
+
+  const { data: transactionsResponse } = useSWR<unknown>(
+    apiKeys.transactions(purchaseParams.toString()),
+  );
+  const { data: users = [] } = useSWR<ProviderUser[]>(
+    apiKeys.users("limit=100"),
+  );
+  const { data: packages = [] } = useSWR<CreditPackage[]>(
+    apiKeys.creditPackages("limit=100"),
+  );
+  const providerByRoleId = useMemo(
+    () =>
+      new Map(
+        users.flatMap((user) =>
+          [user._id, user.roleRef?._id]
+            .filter((id): id is string => Boolean(id))
+            .map((id) => [id, user] as const),
+        ),
+      ),
+    [users],
+  );
+  const packageById = useMemo(
+    () => new Map(packages.map((pkg) => [pkg._id, pkg])),
+    [packages],
+  );
+  const transactions = Array.isArray(transactionsResponse)
+    ? transactionsResponse
+    : ((transactionsResponse as { data?: unknown[] } | undefined)?.data ?? []);
+  const liveTransactions: TransactionItem[] = (
+    transactions as Record<string, unknown>[]
+  ).map((p) => {
+    const providerRecord = p.user as Record<string, unknown> | undefined;
+    const providerId =
+      typeof providerRecord?._id === "string" ? providerRecord._id : "";
+    const provider = providerByRoleId.get(providerId);
+    const providerFirstName = String(
+      providerRecord?.firstName ?? provider?.firstName ?? "",
+    );
+    const providerLastName = String(
+      providerRecord?.lastName ?? provider?.lastName ?? "",
+    );
+    const providerName = [provider?.firstName, provider?.lastName]
+      .filter(Boolean)
+      .join(" ");
+    const providerPhoneRecord = providerRecord?.phone as
+      | Record<string, unknown>
+      | undefined;
+    const purchaseRecord =
+      ((p.reference as Record<string, unknown> | undefined)?.id as
+        | Record<string, unknown>
+        | undefined) ?? {};
+    const transactionRecord = p;
+    const pricing = purchaseRecord.pricing as
+      | Record<string, unknown>
+      | undefined;
+    const packageRecord =
+      purchaseRecord.package && typeof purchaseRecord.package === "object"
+        ? (purchaseRecord.package as Record<string, unknown>)
+        : packageById.get(String(purchaseRecord.package ?? ""));
+    const transactionStatus = String(
+      transactionRecord.status ?? p.status ?? p.paymentStatus ?? "pending",
+    );
+
+    return {
+      id: String(p._id ?? ""),
+      providerName:
+        providerName ||
+        [providerFirstName, providerLastName].filter(Boolean).join(" ") ||
+        "—",
+      providerEmail: String(providerRecord?.email ?? provider?.email ?? "—"),
+      providerPhone: providerPhoneRecord?.number
+        ? `${String(providerPhoneRecord.countryCode ?? "")} ${String(providerPhoneRecord.number)}`.trim()
+        : provider?.phone?.number
+          ? `${provider.phone.countryCode ?? ""} ${provider.phone.number}`.trim()
+          : "—",
+      txnId: String(transactionRecord.uid ?? p.uid ?? p._id ?? ""),
+      date: new Date(String(p.createdAt ?? Date.now())).toLocaleDateString(),
+      dateTime: formatLocalDateTime(p.createdAt),
+      detailGroups: [
+        {
+          title: "Overview",
+          fields: [
+            {
+              label: "Transaction ID",
+              value: String(transactionRecord.uid ?? p.uid ?? p._id ?? ""),
+            },
+            { label: "Date and time", value: formatLocalDateTime(p.createdAt) },
+            {
+              label: "Status",
+              value: String(transactionStatus).replace(/^./, (character) =>
+                character.toUpperCase(),
+              ),
+            },
+            {
+              label: "Total amount",
+              value: `€ ${String(pricing?.total ?? transactionRecord.amount ?? "—")} (${String(pricing?.currency ?? transactionRecord.currency ?? "EUR")})`,
+            },
+          ],
+        },
+        {
+          title: "Provider / Company",
+          fields: [
+            { label: "User name", value: providerName || "—" },
+            {
+              label: "Company",
+              value: (provider?.roleRef?.businessName ?? providerName) || "—",
+            },
+            { label: "Email", value: provider?.email ?? "—" },
+            {
+              label: "Phone",
+              value: provider?.phone?.number
+                ? `${provider.phone.countryCode ?? ""} ${provider.phone.number}`.trim()
+                : "—",
+            },
+          ],
+        },
+        {
+          title: "Package",
+          fields: [
+            {
+              label: "Package",
+              value: String(packageRecord?.name ?? "—"),
+            },
+            {
+              label: "Credits",
+              value: String(
+                packageRecord?.creditsAmount ??
+                  purchaseRecord.creditsAmount ??
+                  "—",
+              ),
+            },
+          ],
+        },
+      ],
+      buyerCompany: String(provider?.roleRef?.businessName ?? "—"),
+      package: String(packageRecord?.name ?? "—"),
+      amount: Number(pricing?.total ?? transactionRecord.amount ?? 0),
+      status: transactionStatus.replace(/^./, (character) =>
+        character.toUpperCase(),
+      ) as TransactionItem["status"],
+    };
+  });
+  const source = liveTransactions;
   const [selectedStatus, setSelectedStatus] = useState("All statuses");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<TransactionItem | null>(null);
   const itemsPerPage = 6;
 
   // Filtered Transactions
   const filteredTransactions = useMemo(() => {
-    if (selectedStatus === "All statuses") {
-      return INITIAL_TRANSACTIONS;
-    }
-    return INITIAL_TRANSACTIONS.filter(
-      (txn) => txn.status.toLowerCase() === selectedStatus.toLowerCase()
-    );
-  }, [selectedStatus]);
+    return source.filter((txn) => {
+      const matchesStatus =
+        selectedStatus === "All statuses" ||
+        txn.status.toLowerCase() === selectedStatus.toLowerCase();
+
+      return matchesStatus;
+    });
+  }, [selectedStatus, source]);
 
   // Pagination calculation
   const totalItems = filteredTransactions.length;
@@ -148,7 +203,7 @@ export default function TransactionsPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filteredTransactions.slice(
     startIndex,
-    startIndex + itemsPerPage
+    startIndex + itemsPerPage,
   );
 
   const handlePrevPage = () => {
@@ -167,14 +222,23 @@ export default function TransactionsPage() {
           Transactions
         </h1>
         <p className="text-sm text-slate-500 font-normal mt-1">
-          {INITIAL_TRANSACTIONS.length} total transactions history
+          {liveTransactions.length} total transactions history
         </p>
       </div>
 
       {/* ── Main Container Card ── */}
       <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-2xs sm:p-6">
-        {/* Top Filter Bar: All statuses Dropdown on the right */}
-        <div className="flex justify-end mb-6">
+        {/* Top Filter Bar */}
+        <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 max-w-xl">
+            <input
+              type="text"
+              placeholder="Search by user name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-full border border-slate-200/80 bg-slate-50/70 px-4 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40"
+            />
+          </div>
           <div className="relative">
             <button
               type="button"
@@ -217,20 +281,21 @@ export default function TransactionsPage() {
               <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-3">TRANSACTION ID</th>
                 <th className="py-3.5 px-3">DATE</th>
-                <th className="py-3.5 px-3">BUYER/COMPANY</th>
+                <th className="py-3.5 px-3">USER</th>
                 <th className="py-3.5 px-3">PACKAGE</th>
                 <th className="py-3.5 px-3">AMOUNT</th>
                 <th className="py-3.5 px-3">STATUS</th>
+                <th className="py-3.5 px-3 text-right">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {currentItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="py-10 text-center text-slate-400 text-sm"
                   >
-                    No transactions found for the selected status.
+                    No transactions match your search or selected status.
                   </td>
                 </tr>
               ) : (
@@ -251,7 +316,7 @@ export default function TransactionsPage() {
 
                     {/* BUYER/COMPANY */}
                     <td className="py-4 px-3 text-slate-600 text-xs sm:text-sm font-medium whitespace-nowrap">
-                      {item.buyerCompany}
+                      {item.providerName}
                     </td>
 
                     {/* PACKAGE */}
@@ -270,15 +335,27 @@ export default function TransactionsPage() {
                     <td className="py-4 px-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          item.status === "Paid"
+                          item.status === "Completed"
                             ? "bg-[#E6F8F2] text-[#00BC7D]"
                             : item.status === "Pending"
-                            ? "bg-amber-50 text-amber-600"
-                            : "bg-rose-50 text-rose-600"
+                              ? "bg-amber-50 text-amber-600"
+                              : "bg-rose-50 text-rose-600"
                         }`}
                       >
                         {item.status}
                       </span>
+                    </td>
+
+                    <td className="py-4 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTransaction(item)}
+                        aria-label={`View transaction ${item.txnId}`}
+                        title="View transaction"
+                        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#00BC7D]/40 hover:bg-[#E6F8F2] hover:text-[#00BC7D]"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -324,6 +401,12 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+
+      <TransactionViewDialog
+        transaction={selectedTransaction}
+        open={Boolean(selectedTransaction)}
+        onOpenChange={(open) => !open && setSelectedTransaction(null)}
+      />
     </div>
   );
 }

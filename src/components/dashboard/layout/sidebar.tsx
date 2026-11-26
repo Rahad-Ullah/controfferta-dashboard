@@ -15,19 +15,21 @@ import {
 import LogoutDialog from "@/components/dashboard/layout/logout-dialog";
 import { cn } from "@/lib/utils";
 import {
-  AlignLeft,
+  ArrowLeftRight,
   Bell,
-  Clock,
-  Download,
-  HelpCircle,
+  CircleHelp,
+  ClipboardList,
+  FileText,
   Info,
-  LayoutGrid,
+  LayoutDashboard,
   LucideIcon,
-  SquarePen,
-  Tag,
   LogOut,
-  User,
-  Users,
+  Newspaper,
+  PackageOpen,
+  ShieldCheck,
+  Tags,
+  UserRound,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -42,18 +44,18 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
-  { name: "Dashboard", path: "/", icon: LayoutGrid },
-  { name: "Users", path: "/users", icon: Users },
-  { name: "Lead", path: "/leads", icon: AlignLeft },
-  { name: "Categories", path: "/categories", icon: Tag },
-  { name: "Blog", path: "/blogs", icon: SquarePen },
-  { name: "Credit Packages", path: "/credit-packages", icon: Clock },
-  { name: "Transactions", path: "/transactions", icon: Download },
+  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "Users", path: "/users", icon: UsersRound },
+  { name: "Lead", path: "/leads", icon: ClipboardList },
+  { name: "Categories", path: "/categories", icon: Tags },
+  { name: "Blog", path: "/blogs", icon: Newspaper },
+  { name: "Credit Packages", path: "/credit-packages", icon: PackageOpen },
+  { name: "Transactions", path: "/transactions", icon: ArrowLeftRight },
   { name: "Notifications", path: "/notifications", icon: Bell, badge: 3 },
-  { name: "Profile", path: "/settings", icon: User },
-  { name: "FAQ", path: "/faqs", icon: HelpCircle },
-  { name: "Privacy Policy", path: "/disclaimer/privacy_policy", icon: Info },
-  { name: "Terms & Condition", path: "/disclaimer/terms_of_service", icon: Info },
+  { name: "Profile", path: "/settings", icon: UserRound },
+  { name: "FAQ", path: "/faqs", icon: CircleHelp },
+  { name: "Privacy Policy", path: "/disclaimer/privacy_policy", icon: ShieldCheck },
+  { name: "Terms & Condition", path: "/disclaimer/terms_of_service", icon: FileText },
   { name: "General Information", path: "/disclaimer/general", icon: Info },
 ];
 
