@@ -9,9 +9,9 @@ import useSWRMutation from "swr/mutation";
 import { useSWRConfig } from "swr";
 import { apiKeys } from "@/lib/api/keys";
 import { nextFetch } from "@/lib/api/fetcher";
-import type { Blog } from "@/types/blog.interface";
+import type { Blog, BlogStatus } from "@/types/blog.interface";
 import type { Category } from "@/types/category.interface";
-import BlogFormDialog from "@/components/dashboard/blogs/blog-form-dialog";
+import BlogForm from "@/components/dashboard/blogs/blog-form";
 import { Button } from "@/components/ui/button";
 
 const DEFAULT_BANNER_IMAGE = "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=1200&auto=format&fit=crop";
@@ -22,7 +22,7 @@ export default function BlogEdit() {
   const id = String(params?.id ?? "");
   const { mutate } = useSWRConfig();
 
-  const { data: blog } = useSWR<Blog>(id ? apiKeys.blog(id) : null);
+  const { data: blog, error: blogError, isLoading: isBlogLoading } = useSWR<Blog>(id ? apiKeys.blog(id) : null);
   const { data: categories = [] } = useSWR<Category[]>(apiKeys.categories(new URLSearchParams({ limit: "1000", sort: "name" }).toString()));
 
   const [formCategoryId, setFormCategoryId] = useState("");
@@ -30,6 +30,7 @@ export default function BlogEdit() {
   const [formDescription, setFormDescription] = useState("");
   const [formBodyContent, setFormBodyContent] = useState("");
   const [formImage, setFormImage] = useState<string | null>(null);
+  const [formStatus, setFormStatus] = useState<BlogStatus>("pending");
   const [formErrors, setFormErrors] = useState<{ title?: string; description?: string; category?: string; image?: string; bodyContent?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +41,7 @@ export default function BlogEdit() {
       setFormDescription(blog.description ?? "");
       setFormBodyContent(blog.bodyContent ?? "");
       setFormImage(blog.imageUrl || DEFAULT_BANNER_IMAGE);
+      setFormStatus(blog.status ?? "pending");
     }
   }, [blog]);
 
@@ -47,11 +49,15 @@ export default function BlogEdit() {
     id ? apiKeys.blog(id) : null,
     (url: string, { arg }: { arg: Record<string, string> }) => nextFetch<Blog>({ url, method: "PATCH", payload: arg }),
   );
+  const { trigger: updateBlogStatus, isMutating: isUpdatingStatus } = useSWRMutation(
+    id ? apiKeys.blogStatus(id) : null,
+    (url: string, { arg }: { arg: { status: BlogStatus } }) => nextFetch<Blog>({ url, method: "PATCH", payload: arg }),
+  );
   const { trigger: uploadImage, isMutating: isUploading } = useSWRMutation(
     apiKeys.mediaUpload,
     (url: string, { arg }: { arg: FormData }) => nextFetch<{ images: string[] }>({ url, method: "POST", payload: arg }),
   );
-  const isMutating = isUpdating || isUploading;
+  const isMutating = isUpdating || isUpdatingStatus || isUploading;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,7 +77,7 @@ export default function BlogEdit() {
     const errors: { title?: string; description?: string; category?: string; image?: string; bodyContent?: string } = {};
     if (!formTitle.trim()) errors.title = "Blog title is required";
     if (!formDescription.trim()) errors.description = "Blog description is required";
-    if (!formCategoryId) errors.category = "Please select a category";
+    if (!/^[0-9a-fA-F]{24}$/.test(formCategoryId)) errors.category = "Please select a valid category";
     if (!formBodyContent.trim()) errors.bodyContent = "Blog content is required";
     if (Object.keys(errors).length) { setFormErrors(errors); toast.error("Please fill in all required fields correctly"); return; }
     try {
@@ -85,6 +91,9 @@ export default function BlogEdit() {
       }
       const payload = { category: formCategoryId, title: formTitle.trim(), description: formDescription.trim(), bodyContent: formBodyContent.trim(), imageUrl };
       await updateBlog(payload, { throwOnError: true });
+      if (formStatus !== blog?.status) {
+        await updateBlogStatus({ status: formStatus }, { throwOnError: true });
+      }
       await mutate(apiKeys.blogs(""));
       toast.success("Blog updated successfully");
       router.push("/blogs");
@@ -111,27 +120,41 @@ export default function BlogEdit() {
           <p className="mt-1 text-sm text-slate-500">Update blog details and publishing image.</p>
         </div>
       </div>
-      <BlogFormDialog
-        open={true}
-        onOpenChange={(open) => { if (!open) router.push("/blogs"); }}
-        editingBlog={blog ?? null}
-        categories={categories}
-        formCategoryId={formCategoryId}
-        formTitle={formTitle}
-        formDescription={formDescription}
-        formBodyContent={formBodyContent}
-        formImage={formImage}
-        formErrors={formErrors}
-        fileInputRef={fileInputRef}
-        onFileChange={handleFileChange}
-        onCategoryChange={handleCategoryChange}
-        onTitleChange={setFormTitle}
-        onDescriptionChange={setFormDescription}
-        onBodyContentChange={setFormBodyContent}
-        onSubmit={handleSubmit}
-        isMutating={isMutating}
-        mode="page"
-      />
+      {isBlogLoading ? (
+        <div className="rounded-2xl border border-slate-200/70 bg-white p-8 text-sm text-slate-500 shadow-2xs">
+          Loading blog details...
+        </div>
+      ) : blogError || !blog ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 shadow-2xs">
+          <h2 className="text-base font-semibold text-rose-800">Unable to load this blog</h2>
+          <p className="mt-1 text-sm text-rose-700">{blogError instanceof Error ? blogError.message : "The blog may have been removed or the URL is invalid."}</p>
+          <Button type="button" variant="outline" onClick={() => router.push("/blogs")} className="mt-4 border-rose-200 bg-white text-rose-700 hover:bg-rose-100 hover:!text-rose-800">
+            Back to blogs
+          </Button>
+        </div>
+      ) : (
+        <BlogForm
+          onOpenChange={(open) => { if (!open) router.push("/blogs"); }}
+          editingBlog={blog}
+          categories={categories}
+          formCategoryId={formCategoryId}
+          formTitle={formTitle}
+          formDescription={formDescription}
+          formBodyContent={formBodyContent}
+          formImage={formImage}
+          formErrors={formErrors}
+          fileInputRef={fileInputRef}
+          onFileChange={handleFileChange}
+          onCategoryChange={handleCategoryChange}
+          onStatusChange={setFormStatus}
+          onTitleChange={setFormTitle}
+          onDescriptionChange={setFormDescription}
+          onBodyContentChange={setFormBodyContent}
+          onSubmit={handleSubmit}
+          isMutating={isMutating}
+          status={formStatus}
+        />
+      )}
     </div>
   );
 }

@@ -24,7 +24,6 @@ import type { Blog, BlogListResponse } from "@/types/blog.interface";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import BlogDeleteDialog from "@/components/dashboard/blogs/blog-delete-dialog";
 import BlogDetailsDialog from "@/components/dashboard/blogs/blog-details-dialog";
-import BlogFormDialog from "@/components/dashboard/blogs/blog-form-dialog";
 import { Button } from "@/components/ui/button";
 
 type BlogItem = Blog;
@@ -42,7 +41,7 @@ export default function BlogPage() {
 
   // Modal states
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
-  const [editingBlog, setEditingBlog] = useState<BlogItem | null>(null);
+  const [editingBlog] = useState<BlogItem | null>(null);
   const [blogToDelete, setBlogToDelete] = useState<BlogItem | null>(null);
   const [selectedBlog, setSelectedBlog] = useState<BlogItem | null>(null);
 
@@ -124,22 +123,7 @@ export default function BlogPage() {
 
   // Open Add Form Modal
   const handleOpenAdd = () => {
-    setEditingBlog(null);
-    setFormCategory("");
-    setFormCategoryId(categories[0]?._id ?? "");
-    setFormTitle("");
-    setFormDescription("");
-    setFormBodyContent("");
-    setFormImage(null);
-    setFormCategoryDropdownOpen(false);
-    setFormErrors({});
-    setIsBlogModalOpen(true);
-  };
-
-  const handleCategoryChange = (category: Category) => {
-    setFormCategory(category.name);
-    setFormCategoryId(category._id);
-    if (formErrors.category) setFormErrors((prev) => ({ ...prev, category: undefined }));
+    router.push("/blogs/new");
   };
 
   // Handle Image File Selection
@@ -706,26 +690,6 @@ export default function BlogPage() {
         </div>
       )}
 
-      <BlogFormDialog
-        open={isBlogModalOpen}
-        onOpenChange={setIsBlogModalOpen}
-        editingBlog={editingBlog}
-        categories={categories}
-        formCategoryId={formCategoryId}
-        formTitle={formTitle}
-        formDescription={formDescription}
-        formBodyContent={formBodyContent}
-        formImage={formImage}
-        formErrors={formErrors}
-        fileInputRef={fileInputRef}
-        onFileChange={handleFileChange}
-        onCategoryChange={handleCategoryChange}
-        onTitleChange={setFormTitle}
-        onDescriptionChange={setFormDescription}
-        onBodyContentChange={setFormBodyContent}
-        onSubmit={handleFormSubmit}
-        isMutating={isMutating}
-      />
       <BlogDetailsDialog blog={selectedBlog} open={Boolean(selectedBlog)} onOpenChange={(open) => !open && setSelectedBlog(null)} />
       <BlogDeleteDialog blog={blogToDelete} open={Boolean(blogToDelete)} onOpenChange={(open) => !open && setBlogToDelete(null)} onConfirm={handleConfirmDeleteBlog} isMutating={isDeleting} />
     </div>
