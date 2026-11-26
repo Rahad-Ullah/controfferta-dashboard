@@ -2,12 +2,10 @@
 
 import {
   AppWindow,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Hammer,
   Plus,
-  PlusCircle,
   Search,
   SquarePen,
   Sun,
@@ -16,133 +14,95 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { useSWRConfig } from "swr";
+import { apiKeys } from "@/lib/api/keys";
+import { nextFetch } from "@/lib/api/fetcher";
+import type { Category } from "@/types/category.interface";
 
-interface CategoryItem {
-  id: string;
-  name: string;
-  description: string;
-  leadCount: number;
-  creditCost: number;
-  iconType: "window" | "solar" | "construction" | "moving";
-}
-
-const INITIAL_CATEGORIES: CategoryItem[] = [
-  {
-    id: "1",
-    name: "Windows & Doors",
-    description: "PVC, aluminum, wood windows, security doors,",
-    leadCount: 11,
-    creditCost: 12,
-    iconType: "window",
-  },
-  {
-    id: "2",
-    name: "Solar Panels",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 23,
-    creditCost: 23,
-    iconType: "solar",
-  },
-  {
-    id: "3",
-    name: "Construction",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 45,
-    creditCost: 14,
-    iconType: "construction",
-  },
-  {
-    id: "4",
-    name: "Windows & Doors",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 122,
-    creditCost: 12,
-    iconType: "window",
-  },
-  {
-    id: "5",
-    name: "Construction",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 67,
-    creditCost: 14,
-    iconType: "construction",
-  },
-  {
-    id: "6",
-    name: "Construction",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 77,
-    creditCost: 12,
-    iconType: "construction",
-  },
-  {
-    id: "7",
-    name: "Windows & Doors",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 33,
-    creditCost: 12,
-    iconType: "window",
-  },
-  {
-    id: "8",
-    name: "Construction",
-    description: "Residential and commercial solar systems, storage",
-    leadCount: 77,
-    creditCost: 12,
-    iconType: "construction",
-  },
-];
+type MediaUploadResponse = {
+  images: string[];
+};
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("All Categories");
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchQuery]);
+
+  const categoriesQuery = new URLSearchParams({
+    limit: "1000",
+    ...(debouncedSearchQuery ? { searchTerm: debouncedSearchQuery } : {}),
+  }).toString();
+  const categoriesKey = apiKeys.categories(categoriesQuery);
+  const { mutate } = useSWRConfig();
+  const { data: categories = [], error, isLoading, isValidating } = useSWR<Category[]>(categoriesKey);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   // Add / Edit Category Form State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
-  const [categoryToDelete, setCategoryToDelete] = useState<CategoryItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   // Form Fields
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formCreditCost, setFormCreditCost] = useState("");
-  const [formQuestions, setFormQuestions] = useState<string[]>([""]);
   const [uploadedIconName, setUploadedIconName] = useState<string | null>(null);
+  const [uploadedIconUrl, setUploadedIconUrl] = useState<string | null>(null);
+  const [selectedIconFile, setSelectedIconFile] = useState<File | null>(null);
+  const iconFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form Validation Errors
   const [formErrors, setFormErrors] = useState<{
     name?: string;
     description?: string;
     creditCost?: string;
-    questions?: string;
   }>({});
 
-  // Filtered Categories
-  const filteredCategories = useMemo(() => {
-    return categories.filter((cat) => {
-      const matchesSearch =
-        cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cat.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesFilter =
-        selectedFilter === "All Categories"
-          ? true
-          : cat.name.toLowerCase() === selectedFilter.toLowerCase();
-
-      return matchesSearch && matchesFilter;
-    });
-  }, [categories, searchQuery, selectedFilter]);
+  const { trigger: createCategory, isMutating: isCreating } = useSWRMutation(
+    apiKeys.categoryCreate,
+    (url: string, { arg }: { arg: Pick<Category, "name" | "description" | "creditCost"> & { iconUrl?: string } }) =>
+      nextFetch<Category>({ url, method: "POST", payload: arg }),
+  );
+  const { trigger: updateCategory, isMutating: isUpdating } = useSWRMutation(
+    editingCategory ? apiKeys.category(editingCategory._id) : null,
+    (url: string, { arg }: { arg: Partial<Pick<Category, "name" | "description" | "creditCost">> & { iconUrl?: string } }) =>
+      nextFetch<Category>({ url, method: "PATCH", payload: arg }),
+  );
+  const { trigger: deleteCategory, isMutating: isDeleting } = useSWRMutation(
+    categoryToDelete ? apiKeys.category(categoryToDelete._id) : null,
+    (url: string) => nextFetch<Category>({ url, method: "DELETE" }),
+  );
+  const { trigger: uploadIcon, isMutating: isUploading } = useSWRMutation(
+    apiKeys.mediaUpload,
+    (url: string, { arg }: { arg: FormData }) =>
+      nextFetch<MediaUploadResponse>({ url, method: "POST", payload: arg }),
+  );
+  const isMutating = isCreating || isUpdating || isDeleting || isUploading;
 
   // Handle Delete Confirmation
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!categoryToDelete) return;
-    setCategories((prev) => prev.filter((c) => c.id !== categoryToDelete.id));
-    toast.success(`Category "${categoryToDelete.name}" deleted successfully`);
-    setCategoryToDelete(null);
+    setMutationError(null);
+    try {
+      await deleteCategory(undefined, { throwOnError: true });
+      await mutate(categoriesKey);
+      toast.success(`Category "${categoryToDelete.name}" deleted successfully`);
+      setCategoryToDelete(null);
+    } catch (err) {
+      setMutationError(err instanceof Error ? err.message : "Unable to delete category");
+    }
   };
 
   // Open Add Form
@@ -151,49 +111,38 @@ export default function CategoriesPage() {
     setFormName("");
     setFormDescription("");
     setFormCreditCost("");
-    setFormQuestions([""]);
     setUploadedIconName(null);
+    setUploadedIconUrl(null);
+    setSelectedIconFile(null);
     setFormErrors({});
     setIsAddModalOpen(true);
   };
 
   // Open Edit Form
-  const handleOpenEdit = (category: CategoryItem) => {
+  const handleOpenEdit = (category: Category) => {
     setEditingCategory(category);
     setFormName(category.name);
     setFormDescription(category.description);
-    setFormCreditCost(`${category.creditCost} Cr`);
-    setFormQuestions(["What service do you need?"]);
-    setUploadedIconName("category_icon.svg");
+    setFormCreditCost(`${category.creditCost}`);
+    setUploadedIconUrl(category.iconUrl || null);
+    setSelectedIconFile(null);
+    setUploadedIconName(
+      category.iconUrl
+        ? decodeURIComponent(category.iconUrl.split("/").pop() || "category_icon.png")
+        : null,
+    );
     setFormErrors({});
     setIsAddModalOpen(true);
   };
 
-  // Handle Add Question input field
-  const handleAddQuestionField = () => {
-    setFormQuestions((prev) => [...prev, ""]);
-  };
-
-  const handleQuestionChange = (index: number, value: string) => {
-    setFormQuestions((prev) => {
-      const copy = [...prev];
-      copy[index] = value;
-      return copy;
-    });
-    if (formErrors.questions) {
-      setFormErrors((prev) => ({ ...prev, questions: undefined }));
-    }
-  };
-
   // Handle Submit Form
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const errors: {
       name?: string;
       description?: string;
       creditCost?: string;
-      questions?: string;
     } = {};
 
     if (!formName.trim()) {
@@ -204,14 +153,9 @@ export default function CategoriesPage() {
       errors.description = "Description is required";
     }
 
-    const cleanCost = formCreditCost.replace(/\D/g, "");
-    if (!cleanCost || parseInt(cleanCost, 10) <= 0) {
-      errors.creditCost = "Credit cost is required and must be at least 1 credit";
-    }
-
-    const hasValidQuestion = formQuestions.some((q) => q.trim().length > 0);
-    if (!hasValidQuestion) {
-      errors.questions = "At least one qualification question is required";
+    const cleanCost = formCreditCost.trim();
+    if (!/^\d+$/.test(cleanCost)) {
+      errors.creditCost = "Credit cost must be a whole number of 0 or greater";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -222,57 +166,100 @@ export default function CategoriesPage() {
 
     const numericCost = parseInt(cleanCost, 10);
 
-    if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editingCategory.id
-            ? {
-                ...c,
-                name: formName.trim(),
-                description: formDescription.trim(),
-                creditCost: numericCost,
-              }
-            : c
-        )
-      );
-      toast.success("Category updated successfully");
-    } else {
-      const newCategory: CategoryItem = {
-        id: Date.now().toString(),
+    setMutationError(null);
+    try {
+      let iconUrl = uploadedIconUrl ?? "";
+
+      if (selectedIconFile) {
+        const formData = new FormData();
+        formData.append("image", selectedIconFile);
+        const uploadResponse = await uploadIcon(formData, { throwOnError: true });
+        iconUrl = uploadResponse.images[0] ?? "";
+      }
+
+      const payload = {
         name: formName.trim(),
         description: formDescription.trim(),
-        leadCount: 0,
         creditCost: numericCost,
-        iconType: formName.toLowerCase().includes("solar")
-          ? "solar"
-          : formName.toLowerCase().includes("door") ||
-            formName.toLowerCase().includes("window")
-          ? "window"
-          : formName.toLowerCase().includes("mov")
-          ? "moving"
-          : "construction",
+        iconUrl,
       };
 
-      setCategories((prev) => [newCategory, ...prev]);
-      toast.success("Category added successfully");
+      if (editingCategory) {
+        await updateCategory(payload, { throwOnError: true });
+        toast.success("Category updated successfully");
+      } else {
+        await createCategory(payload, { throwOnError: true });
+        toast.success("Category added successfully");
+      }
+      await mutate(categoriesKey);
+      setFormErrors({});
+      setIsAddModalOpen(false);
+    } catch (err) {
+      setMutationError(err instanceof Error ? err.message : "Unable to save category");
+    }
+  };
+
+  const handleIconFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedImageTypes = new Set([
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "image/heic",
+      "image/heif",
+    ]);
+
+    if (!allowedImageTypes.has(file.type.toLowerCase())) {
+      toast.error("Only PNG, JPG, JPEG, HEIC, and HEIF images are supported");
+      event.target.value = "";
+      return;
     }
 
-    setFormErrors({});
-    setIsAddModalOpen(false);
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image size must be 10 MB or less");
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedIconFile(file);
+    setUploadedIconName(file.name);
+    setUploadedIconUrl(URL.createObjectURL(file));
   };
 
   // Helper to render icon for Category
-  const renderCategoryIcon = (type: CategoryItem["iconType"]) => {
+  const renderCategoryIcon = (name: string, iconUrl: string) => {
+    if (iconUrl) {
+      return (
+        <Image
+          src={iconUrl}
+          alt={`${name} icon`}
+          width={48}
+          height={48}
+          unoptimized
+          className="w-12 h-12 object-contain shrink-0"
+        />
+      );
+    }
+
+    const type = name.toLowerCase().includes("solar")
+      ? "solar"
+      : name.toLowerCase().includes("door") || name.toLowerCase().includes("window")
+        ? "window"
+        : name.toLowerCase().includes("mov")
+          ? "moving"
+          : "construction";
     switch (type) {
       case "window":
-        return <AppWindow className="w-4 h-4 text-slate-500 shrink-0" />;
+        return <AppWindow className="w-12 h-12 text-slate-500 shrink-0" />;
       case "solar":
-        return <Sun className="w-4 h-4 text-slate-500 shrink-0" />;
+        return <Sun className="w-12 h-12 text-slate-500 shrink-0" />;
       case "moving":
-        return <Truck className="w-4 h-4 text-slate-500 shrink-0" />;
+        return <Truck className="w-12 h-12 text-slate-500 shrink-0" />;
       case "construction":
       default:
-        return <Hammer className="w-4 h-4 text-slate-500 shrink-0" />;
+        return <Hammer className="w-12 h-12 text-slate-500 shrink-0" />;
     }
   };
 
@@ -288,7 +275,7 @@ export default function CategoriesPage() {
             Categories
           </h1>
           <p className="text-sm text-slate-500 font-normal mt-1">
-            12 total categories
+            {categories.length} total categories
           </p>
         </div>
 
@@ -305,8 +292,18 @@ export default function CategoriesPage() {
 
       {/* ── Main White Container Card ── */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            Failed to load categories: {error.message}
+          </div>
+        )}
+        {mutationError && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {mutationError}
+          </div>
+        )}
         {/* Search & All Categories Dropdown Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
           {/* Pill Search Input */}
           <div className="relative flex-1 max-w-xl">
             <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -319,45 +316,6 @@ export default function CategoriesPage() {
             />
           </div>
 
-          {/* All Categories Dropdown Button */}
-          <div className="relative self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-xs sm:text-sm font-semibold text-slate-700 transition-colors cursor-pointer"
-            >
-              <span>{selectedFilter}</span>
-              <ChevronDown className="w-4 h-4 text-slate-500" />
-            </button>
-
-            {isFilterDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-lg py-1.5 z-20 animate-in fade-in zoom-in-95 duration-150">
-                {[
-                  "All Categories",
-                  "Windows & Doors",
-                  "Solar Panels",
-                  "Construction",
-                  "Moving",
-                ].map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => {
-                      setSelectedFilter(opt);
-                      setIsFilterDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-xs sm:text-sm transition-colors cursor-pointer ${
-                      selectedFilter === opt
-                        ? "bg-[#E6F8F2] text-[#00BC7D] font-semibold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* ── Table Container ── */}
@@ -373,36 +331,45 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredCategories.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-10 text-center text-slate-400 text-sm">
+                    Loading categories...
+                  </td>
+                </tr>
+              ) : categories.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-10 text-center text-slate-400 text-sm">
                     No categories found matching your search.
                   </td>
                 </tr>
               ) : (
-                filteredCategories.map((cat, idx) => (
+                categories.map((cat) => (
                   <tr
-                    key={`${cat.id}-${idx}`}
+                    key={cat._id}
                     className="hover:bg-slate-50/60 transition-colors"
                   >
                     {/* CATEGORY (Icon + Pill) */}
                     <td className="py-4 px-3 whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        {renderCategoryIcon(cat.iconType)}
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100/90 text-slate-700">
+                      <div className="flex items-center gap-3">
+                        {renderCategoryIcon(cat.name, cat.iconUrl)}
+                        <span className="text-sm font-medium text-slate-700">
                           {cat.name}
                         </span>
                       </div>
                     </td>
 
                     {/* DESCRIPTION */}
-                    <td className="py-4 px-3 text-slate-600 text-xs sm:text-sm max-w-sm">
+                    <td
+                      className="py-4 px-3 text-slate-600 text-xs sm:text-sm max-w-[280px] truncate"
+                      title={cat.description}
+                    >
                       {cat.description}
                     </td>
 
                     {/* LEAD COUNT */}
                     <td className="py-4 px-3 text-slate-600 font-medium text-sm whitespace-nowrap">
-                      {cat.leadCount}
+                      {cat.totalLeads}
                     </td>
 
                     {/* CREDIT COST */}
@@ -440,7 +407,10 @@ export default function CategoriesPage() {
 
         {/* ── Table Footer / Pagination ── */}
         <div className="pt-6 flex items-center justify-between text-xs text-slate-400">
-          <span>Showing 1-5 of 48 categories</span>
+          <span>
+            Showing {categories.length} matching categories
+            {isValidating && " · Syncing..."}
+          </span>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -487,23 +457,37 @@ export default function CategoriesPage() {
                     Upload Icon
                   </label>
                   <div
-                    onClick={() =>
-                      setUploadedIconName(
-                        uploadedIconName ? null : "category_icon.svg"
-                      )
-                    }
+                    onClick={() => iconFileInputRef.current?.click()}
                     className="border border-dashed border-slate-300 rounded-2xl p-5 text-center bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer"
                   >
+                    <input
+                      ref={iconFileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/heic,image/heif"
+                      onChange={handleIconFileChange}
+                      className="hidden"
+                    />
                     {uploadedIconName ? (
                       <div>
                         <div className="w-9 h-9 rounded-full bg-[#E6F8F2] text-[#00BC7D] flex items-center justify-center mx-auto mb-1.5">
-                          <Sun className="w-4 h-4" />
+                          {uploadedIconUrl ? (
+                            <Image
+                              src={uploadedIconUrl}
+                              alt={`${formName || "Category"} icon preview`}
+                              width={36}
+                              height={36}
+                              unoptimized
+                              className="w-9 h-9 rounded-full object-contain"
+                            />
+                          ) : (
+                            <Upload className="w-4 h-4" />
+                          )}
                         </div>
                         <div className="text-xs font-semibold text-[#00705d]">
                           {uploadedIconName}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          Click to remove or replace
+                          Click to replace image
                         </div>
                       </div>
                     ) : (
@@ -513,7 +497,7 @@ export default function CategoriesPage() {
                           Click to select or drop icon file
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          SVG, PNG — Max 5 MB
+                          PNG, JPG, JPEG, HEIC, HEIF — Max 10 MB
                         </div>
                       </div>
                     )}
@@ -580,7 +564,9 @@ export default function CategoriesPage() {
                     Credit Cost <span className="text-rose-500">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="number"
+                    min="0"
+                    step="1"
                     placeholder="e.g. 15 Cr"
                     value={formCreditCost}
                     onChange={(e) => {
@@ -601,46 +587,6 @@ export default function CategoriesPage() {
                   )}
                 </div>
 
-                {/* Add Questions with Plus Icon */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-semibold text-slate-700">
-                      Qualification Questions <span className="text-rose-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleAddQuestionField}
-                      className="text-[#0F172A] hover:opacity-75 transition-opacity cursor-pointer inline-flex items-center gap-1 text-xs font-semibold"
-                      title="Add Question"
-                    >
-                      <PlusCircle className="w-4 h-4 fill-[#0F172A] text-white" />
-                      <span>Add</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {formQuestions.map((q, idx) => (
-                      <input
-                        key={idx}
-                        type="text"
-                        placeholder="What service do you need?"
-                        value={q}
-                        onChange={(e) => handleQuestionChange(idx, e.target.value)}
-                        className={`w-full border rounded-xl px-4 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none transition-all ${
-                          formErrors.questions
-                            ? "border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-400/40"
-                            : "bg-slate-50/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  {formErrors.questions && (
-                    <p className="text-xs text-rose-500 font-medium mt-1 flex items-center gap-1">
-                      <span>•</span>
-                      <span>{formErrors.questions}</span>
-                    </p>
-                  )}
-                </div>
               </form>
             </div>
 
@@ -656,9 +602,16 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={handleFormSubmit}
+                disabled={isMutating}
                 className="px-6 py-2.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
               >
-                {editingCategory ? "Update Category" : "Upload Category"}
+                {isUploading
+                  ? "Uploading..."
+                  : isMutating
+                    ? "Saving..."
+                    : editingCategory
+                      ? "Update Category"
+                      : "Upload Category"}
               </button>
             </div>
           </div>
@@ -712,9 +665,10 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={handleConfirmDelete}
+                disabled={isMutating}
                 className="px-5 py-2 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-colors cursor-pointer shadow-xs"
               >
-                Delete Category
+                {isMutating ? "Deleting..." : "Delete Category"}
               </button>
             </div>
           </div>

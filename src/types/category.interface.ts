@@ -1,9 +1,13 @@
 export interface Category {
   _id: string;
   name: string;
-  description?: string;
-  iconUrl?: string;
-  creditCost?: number;
+  description: string;
+  iconUrl: string;
+  creditCost: number;
+  totalLeads: number;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CategoryQuery {
