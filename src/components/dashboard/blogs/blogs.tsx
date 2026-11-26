@@ -1,127 +1,39 @@
 "use client";
 
 import {
-  AppWindow,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Hammer,
   Plus,
   Search,
   SquarePen,
-  Sun,
   Trash2,
-  Truck,
   Upload,
   X,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { useSWRConfig } from "swr";
+import { apiKeys } from "@/lib/api/keys";
+import { nextFetch } from "@/lib/api/fetcher";
+import type { Category } from "@/types/category.interface";
+import type { Blog, BlogListResponse } from "@/types/blog.interface";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 
-interface BlogItem {
-  id: string;
-  category: string;
-  iconType: "window" | "solar" | "construction" | "moving" | "energy";
-  title: string;
-  description: string;
-  imageUrl?: string;
-  date?: string;
-}
+type BlogItem = Blog;
 
 const DEFAULT_BANNER_IMAGE =
   "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=1200&auto=format&fit=crop";
 
-const INITIAL_BLOGS: BlogItem[] = [
-  {
-    id: "1",
-    category: "Windows & Doors",
-    iconType: "window",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "2",
-    category: "Solar Panels",
-    iconType: "solar",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "3",
-    category: "Construction",
-    iconType: "construction",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "4",
-    category: "Construction",
-    iconType: "construction",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "5",
-    category: "Solar Panels",
-    iconType: "solar",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "6",
-    category: "Construction",
-    iconType: "construction",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "7",
-    category: "Solar Panels",
-    iconType: "solar",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-  {
-    id: "8",
-    category: "Construction",
-    iconType: "construction",
-    title: "How to Choose the Right Professionals for Your Home Project",
-    description:
-      "Planning a renovation or home repair in Italy can feel overwhelming. Learn how to verify contractor certifications, compare itemized quotes, and protect",
-    imageUrl: DEFAULT_BANNER_IMAGE,
-  },
-];
-
-const CATEGORY_OPTIONS = [
-  "Solar & Energy",
-  "Windows & Doors",
-  "Solar Panels",
-  "Construction",
-  "Moving",
-  "Other",
-];
-
 export default function BlogPage() {
-  const [blogs, setBlogs] = useState<BlogItem[]>(INITIAL_BLOGS);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const { mutate } = useSWRConfig();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] =
-    useState("All Categories");
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   // Modal states
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
@@ -129,9 +41,11 @@ export default function BlogPage() {
   const [blogToDelete, setBlogToDelete] = useState<BlogItem | null>(null);
 
   // Form states
-  const [formCategory, setFormCategory] = useState("Solar & Energy");
+  const [formCategory, setFormCategory] = useState("");
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formBodyContent, setFormBodyContent] = useState("");
+  const [formCategoryId, setFormCategoryId] = useState("");
   const [formImage, setFormImage] = useState<string | null>(null);
   const [formCategoryDropdownOpen, setFormCategoryDropdownOpen] = useState(false);
 
@@ -141,41 +55,75 @@ export default function BlogPage() {
     description?: string;
     category?: string;
     image?: string;
+    bodyContent?: string;
   }>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filtered Blogs
-  const filteredBlogs = useMemo(() => {
-    return blogs.filter((blog) => {
-      const matchesSearch =
-        blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        blog.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        blog.category.toLowerCase().includes(searchQuery.toLowerCase());
+  const categoriesKey = apiKeys.categories(new URLSearchParams({ limit: "1000", sort: "name" }).toString());
+  const { data: categories = [] } = useSWR<Category[]>(categoriesKey);
+  const query = useMemo(() => {
+    const params = new URLSearchParams({ page: String(page), limit: "8", sort: "-createdAt" });
+    if (debouncedSearch) params.set("searchTerm", debouncedSearch);
+    if (categoryFilter !== "all") params.set("category", categoryFilter);
+    return params.toString();
+  }, [categoryFilter, debouncedSearch, page]);
+  const blogsKey = apiKeys.blogs(query);
+  const { data, error, isLoading, isValidating } = useSWR<BlogListResponse>(
+    blogsKey,
+    (url: string) => nextFetch<BlogListResponse>({ url, preservePagination: true }),
+  );
+  const blogs = data?.data ?? [];
+  const pagination = data?.pagination;
+  const categoryOptions: SearchableSelectOption[] = [
+    { value: "all", label: "All categories" },
+    ...categories.map((category) => ({ value: category._id, label: category.name })),
+  ];
 
-      const matchesCategory =
-        selectedCategoryFilter === "All Categories"
-          ? true
-          : blog.category.toLowerCase() === selectedCategoryFilter.toLowerCase();
+  const { trigger: createBlog, isMutating: isCreating } = useSWRMutation(
+    apiKeys.blogCreate,
+    (url: string, { arg }: { arg: Record<string, string> }) => nextFetch<Blog>({ url, method: "POST", payload: arg }),
+  );
+  const { trigger: updateBlog, isMutating: isUpdating } = useSWRMutation(
+    editingBlog ? apiKeys.blog(editingBlog._id) : null,
+    (url: string, { arg }: { arg: Record<string, string> }) => nextFetch<Blog>({ url, method: "PATCH", payload: arg }),
+  );
+  const { trigger: deleteBlog, isMutating: isDeleting } = useSWRMutation(
+    blogToDelete ? apiKeys.blog(blogToDelete._id) : null,
+    (url: string) => nextFetch<Blog>({ url, method: "DELETE" }),
+  );
+  const { trigger: uploadImage, isMutating: isUploading } = useSWRMutation(
+    apiKeys.mediaUpload,
+    (url: string, { arg }: { arg: FormData }) => nextFetch<{ images: string[] }>({ url, method: "POST", payload: arg }),
+  );
+  const isMutating = isCreating || isUpdating || isDeleting || isUploading;
 
-      return matchesSearch && matchesCategory;
-    });
-  }, [blogs, searchQuery, selectedCategoryFilter]);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => { setDebouncedSearch(searchQuery.trim()); setPage(1); }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   // Handle Delete Confirmation
-  const handleConfirmDeleteBlog = () => {
+  const handleConfirmDeleteBlog = async () => {
     if (!blogToDelete) return;
-    setBlogs((prev) => prev.filter((b) => b.id !== blogToDelete.id));
-    toast.success(`Blog "${blogToDelete.title}" deleted successfully`);
-    setBlogToDelete(null);
+    try {
+      await deleteBlog(undefined, { throwOnError: true });
+      await mutate(blogsKey);
+      toast.success(`Blog "${blogToDelete.title}" deleted successfully`);
+      setBlogToDelete(null);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Unable to delete blog");
+    }
   };
 
   // Open Add Form Modal
   const handleOpenAdd = () => {
     setEditingBlog(null);
-    setFormCategory("Solar & Energy");
+    setFormCategory("");
+    setFormCategoryId(categories[0]?._id ?? "");
     setFormTitle("");
     setFormDescription("");
+    setFormBodyContent("");
     setFormImage(null);
     setFormCategoryDropdownOpen(false);
     setFormErrors({});
@@ -185,11 +133,11 @@ export default function BlogPage() {
   // Open Edit Form Modal
   const handleOpenEdit = (blog: BlogItem) => {
     setEditingBlog(blog);
-    setFormCategory(
-      blog.category === "Solar Panels" ? "Solar & Energy" : blog.category
-    );
+    setFormCategory(blog.category.name);
+    setFormCategoryId(blog.category._id);
     setFormTitle(blog.title);
     setFormDescription(blog.description);
+    setFormBodyContent(blog.bodyContent);
     setFormImage(blog.imageUrl || DEFAULT_BANNER_IMAGE);
     setFormCategoryDropdownOpen(false);
     setFormErrors({});
@@ -200,8 +148,8 @@ export default function BlogPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("File size exceeds 5 MB");
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Image size must be 10 MB or less");
         return;
       }
       const previewUrl = URL.createObjectURL(file);
@@ -214,7 +162,7 @@ export default function BlogPage() {
   };
 
   // Handle Form Submission (Add or Edit)
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const errors: {
@@ -222,6 +170,7 @@ export default function BlogPage() {
       description?: string;
       category?: string;
       image?: string;
+      bodyContent?: string;
     } = {};
 
     if (!formTitle.trim()) {
@@ -232,12 +181,11 @@ export default function BlogPage() {
       errors.description = "Blog description is required";
     }
 
-    if (!formCategory.trim()) {
+    if (!formCategoryId) {
       errors.category = "Please select a category";
     }
-
-    if (!formImage && !editingBlog?.imageUrl) {
-      errors.image = "Banner image is required";
+    if (!formBodyContent.trim()) {
+      errors.bodyContent = "Blog content is required";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -246,67 +194,30 @@ export default function BlogPage() {
       return;
     }
 
-    const titleToUse = formTitle.trim();
-    const descToUse = formDescription.trim();
-
-    let iconType: BlogItem["iconType"] = editingBlog ? editingBlog.iconType : "solar";
-    if (formCategory.toLowerCase().includes("window")) iconType = "window";
-    else if (formCategory.toLowerCase().includes("construction"))
-      iconType = "construction";
-    else if (formCategory.toLowerCase().includes("mov")) iconType = "moving";
-    else if (
-      formCategory.toLowerCase().includes("solar") ||
-      formCategory.toLowerCase().includes("energy")
-    )
-      iconType = "solar";
-
-    if (editingBlog) {
-      setBlogs((prev) =>
-        prev.map((b) =>
-          b.id === editingBlog.id
-            ? {
-                ...b,
-                category: formCategory,
-                iconType,
-                title: titleToUse,
-                description: descToUse,
-                imageUrl: formImage || b.imageUrl || DEFAULT_BANNER_IMAGE,
-              }
-            : b
-        )
-      );
-      toast.success("Blog updated successfully");
-    } else {
-      const newBlog: BlogItem = {
-        id: Date.now().toString(),
-        category: formCategory,
-        iconType,
-        title: titleToUse,
-        description: descToUse,
-        imageUrl: formImage || DEFAULT_BANNER_IMAGE,
+    try {
+      let imageUrl = editingBlog?.imageUrl ?? "";
+      const selectedFile = fileInputRef.current?.files?.[0];
+      if (selectedFile) {
+        const uploadForm = new FormData();
+        uploadForm.append("image", selectedFile);
+        const response = await uploadImage(uploadForm, { throwOnError: true });
+        imageUrl = response.images[0] ?? imageUrl;
+      }
+      const payload = {
+        category: formCategoryId,
+        title: formTitle.trim(),
+        description: formDescription.trim(),
+        bodyContent: formBodyContent.trim(),
+        imageUrl,
       };
-
-      setBlogs((prev) => [newBlog, ...prev]);
-      toast.success("Blog created successfully");
-    }
-
-    setFormErrors({});
-    setIsBlogModalOpen(false);
-  };
-
-  // Helper to render category icon
-  const renderCategoryIcon = (type: BlogItem["iconType"]) => {
-    switch (type) {
-      case "window":
-        return <AppWindow className="w-4 h-4 text-slate-500 shrink-0" />;
-      case "solar":
-      case "energy":
-        return <Sun className="w-4 h-4 text-slate-500 shrink-0" />;
-      case "moving":
-        return <Truck className="w-4 h-4 text-slate-500 shrink-0" />;
-      case "construction":
-      default:
-        return <Hammer className="w-4 h-4 text-slate-500 shrink-0" />;
+      if (editingBlog) await updateBlog(payload, { throwOnError: true });
+      else await createBlog(payload, { throwOnError: true });
+      await mutate(blogsKey);
+      toast.success(editingBlog ? "Blog updated successfully" : "Blog created successfully");
+      setFormErrors({});
+      setIsBlogModalOpen(false);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Unable to save blog");
     }
   };
 
@@ -322,7 +233,7 @@ export default function BlogPage() {
             Blog Management
           </h1>
           <p className="text-sm text-slate-500 font-normal mt-1">
-            {blogs.length} total blogs
+            {pagination?.total ?? 0} total blogs
           </p>
         </div>
 
@@ -339,6 +250,7 @@ export default function BlogPage() {
 
       {/* ── Main White Container Card ── */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+        {error && <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">Failed to load blogs: {error.message}</p>}
         {/* Search & All Categories Dropdown Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
           {/* Pill Search Input */}
@@ -354,45 +266,13 @@ export default function BlogPage() {
           </div>
 
           {/* All Categories Dropdown Button */}
-          <div className="relative self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-xs sm:text-sm font-semibold text-slate-700 transition-colors cursor-pointer"
-            >
-              <span>{selectedCategoryFilter}</span>
-              <ChevronDown className="w-4 h-4 text-slate-500" />
-            </button>
-
-            {isFilterDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-slate-200 shadow-lg py-1.5 z-20 animate-in fade-in zoom-in-95 duration-150">
-                {[
-                  "All Categories",
-                  "Windows & Doors",
-                  "Solar Panels",
-                  "Construction",
-                  "Moving",
-                  "Solar & Energy",
-                ].map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategoryFilter(opt);
-                      setIsFilterDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-xs sm:text-sm transition-colors cursor-pointer ${
-                      selectedCategoryFilter === opt
-                        ? "bg-[#E6F8F2] text-[#00BC7D] font-semibold"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <SearchableSelect
+            value={categoryFilter}
+            options={categoryOptions}
+            onValueChange={(value) => { setCategoryFilter(value); setPage(1); }}
+            searchPlaceholder="Search categories..."
+            className="sm:w-52"
+          />
         </div>
 
         {/* ── Table Container ── */}
@@ -400,43 +280,69 @@ export default function BlogPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3.5 px-3">BLOG</th>
+                <th className="py-3.5 px-3">AUTHOR</th>
                 <th className="py-3.5 px-3">CATEGORY</th>
-                <th className="py-3.5 px-3">TITLE</th>
-                <th className="py-3.5 px-3">DESCRIPTION</th>
+                <th className="py-3.5 px-3">STATUS</th>
                 <th className="py-3.5 px-3 text-right">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredBlogs.length === 0 ? (
+              {isLoading ? (
+                <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">Loading blogs...</td></tr>
+              ) : blogs.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-10 text-center text-slate-400 text-sm">
+                  <td colSpan={5} className="py-10 text-center text-slate-400 text-sm">
                     No blogs found matching your search.
                   </td>
                 </tr>
               ) : (
-                filteredBlogs.map((blog, idx) => (
+                blogs.map((blog) => (
                   <tr
-                    key={`${blog.id}-${idx}`}
+                    key={blog._id}
                     className="hover:bg-slate-50/60 transition-colors"
                   >
-                    {/* CATEGORY (Icon + Pill) */}
-                    <td className="py-4 px-3 whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        {renderCategoryIcon(blog.iconType)}
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100/90 text-slate-700">
-                          {blog.category}
+                    {/* BLOG IMAGE + TITLE */}
+                    <td className="py-4 px-3 min-w-[280px]">
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                          {blog.imageUrl ? (
+                            <Image src={blog.imageUrl} alt="" fill unoptimized className="object-cover" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-[10px] font-medium text-slate-400">No image</div>
+                          )}
+                        </div>
+                        <span className="line-clamp-2 max-w-[260px] text-xs font-semibold text-slate-800 sm:text-sm">
+                          {blog.title}
                         </span>
                       </div>
                     </td>
 
-                    {/* TITLE */}
-                    <td className="py-4 px-3 text-slate-800 font-medium text-xs sm:text-sm max-w-xs">
-                      {blog.title}
+                    {/* AUTHOR */}
+                    <td className="whitespace-nowrap px-3 py-4 text-xs text-slate-600 sm:text-sm">
+                      {blog.author
+                        ? `${blog.author.firstName} ${blog.author.lastName}`.trim()
+                        : "—"}
                     </td>
 
-                    {/* DESCRIPTION */}
-                    <td className="py-4 px-3 text-slate-500 text-xs sm:text-sm max-w-md line-clamp-2">
-                      {blog.description}
+                    {/* CATEGORY */}
+                    <td className="whitespace-nowrap px-3 py-4">
+                      <span className="inline-flex items-center rounded-full bg-slate-100/90 px-3 py-1 text-xs font-medium text-slate-700">
+                        {blog.category.name}
+                      </span>
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="whitespace-nowrap px-3 py-4">
+                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize ${
+                        blog.status === "published"
+                          ? "border-emerald-100 bg-[#E6F8F2] text-[#00BC7D]"
+                          : blog.status === "hidden"
+                            ? "border-slate-200 bg-slate-100 text-slate-500"
+                            : "border-amber-100 bg-amber-50 text-amber-600"
+                      }`}>
+                        {blog.status}
+                      </span>
                     </td>
 
                     {/* ACTION (Edit / Delete) */}
@@ -469,18 +375,22 @@ export default function BlogPage() {
 
         {/* ── Table Footer / Pagination ── */}
         <div className="pt-6 flex items-center justify-between text-xs text-slate-400">
-          <span>Showing 1-8 of {blogs.length} blogs</span>
+          <span>Showing {blogs.length ? (page - 1) * (pagination?.limit ?? 8) + 1 : 0}-{(page - 1) * (pagination?.limit ?? 8) + blogs.length} of {pagination?.total ?? 0} blogs{isValidating && " · Syncing..."}</span>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((current) => current - 1)}
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer disabled:opacity-50"
               title="Previous"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               type="button"
-              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              disabled={!pagination || page >= pagination.totalPage || isLoading}
+              onClick={() => setPage((current) => current + 1)}
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer disabled:opacity-50"
               title="Next"
             >
               <ChevronRight className="w-4 h-4" />
@@ -500,6 +410,7 @@ export default function BlogPage() {
               </h2>
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={() => setIsBlogModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
                 title="Close"
@@ -599,24 +510,25 @@ export default function BlogPage() {
 
                   {formCategoryDropdownOpen && (
                     <div className="absolute left-0 right-0 mt-1.5 bg-white rounded-xl border border-slate-200 shadow-lg py-1.5 z-20 animate-in fade-in zoom-in-95 duration-150">
-                      {CATEGORY_OPTIONS.map((cat) => (
+                      {categories.map((cat) => (
                         <button
-                          key={cat}
+                          key={cat._id}
                           type="button"
                           onClick={() => {
-                            setFormCategory(cat);
+                            setFormCategory(cat.name);
+                            setFormCategoryId(cat._id);
                             setFormCategoryDropdownOpen(false);
                             if (formErrors.category) {
                               setFormErrors((prev) => ({ ...prev, category: undefined }));
                             }
                           }}
                           className={`w-full text-left px-4 py-2 text-xs transition-colors cursor-pointer ${
-                            formCategory === cat
+                            formCategoryId === cat._id
                               ? "bg-[#E6F8F2] text-[#00BC7D] font-semibold"
                               : "text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          {cat}
+                            {cat.name}
                         </button>
                       ))}
                     </div>
@@ -686,6 +598,20 @@ export default function BlogPage() {
                     </p>
                   )}
                 </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                    Body Content <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    placeholder="Write the full blog content..."
+                    value={formBodyContent}
+                    onChange={(e) => setFormBodyContent(e.target.value)}
+                    rows={7}
+                    className="w-full border rounded-xl px-4 py-2.5 text-sm text-[#0F172A] placeholder:text-slate-400 focus:outline-none transition-all resize-none bg-slate-50/70 border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
+                  />
+                  {formErrors.bodyContent && <p className="text-xs text-rose-500 font-medium mt-1">{formErrors.bodyContent}</p>}
+                </div>
               </form>
             </div>
 
@@ -693,6 +619,7 @@ export default function BlogPage() {
             <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={() => setIsBlogModalOpen(false)}
                 className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
               >
@@ -700,6 +627,7 @@ export default function BlogPage() {
               </button>
               <button
                 type="button"
+                disabled={isMutating}
                 onClick={handleFormSubmit}
                 className="px-6 py-2.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
               >

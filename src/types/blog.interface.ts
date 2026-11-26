@@ -19,9 +19,9 @@ export interface Blog {
   description: string;
   bodyContent: string;
   imageUrl: string;
-  author: BlogAuthor;
+  author?: BlogAuthor;
   status: BlogStatus;
-  isDeleted: boolean;
+  isDeleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,4 +63,9 @@ export interface BlogPagination {
   limit: number;
   total: number;
   totalPage: number;
+}
+
+export interface BlogListResponse {
+  data: Blog[];
+  pagination: BlogPagination;
 }
