@@ -6,13 +6,13 @@ import {
   ChevronRight,
   Plus,
   Search,
-  SquarePen,
   Trash2,
   Upload,
   X,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
@@ -22,6 +22,10 @@ import { nextFetch } from "@/lib/api/fetcher";
 import type { Category } from "@/types/category.interface";
 import type { Blog, BlogListResponse } from "@/types/blog.interface";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import BlogDeleteDialog from "@/components/dashboard/blogs/blog-delete-dialog";
+import BlogDetailsDialog from "@/components/dashboard/blogs/blog-details-dialog";
+import BlogFormDialog from "@/components/dashboard/blogs/blog-form-dialog";
+import { Button } from "@/components/ui/button";
 
 type BlogItem = Blog;
 
@@ -33,12 +37,14 @@ export default function BlogPage() {
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const { mutate } = useSWRConfig();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Modal states
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState<BlogItem | null>(null);
   const [blogToDelete, setBlogToDelete] = useState<BlogItem | null>(null);
+  const [selectedBlog, setSelectedBlog] = useState<BlogItem | null>(null);
 
   // Form states
   const [formCategory, setFormCategory] = useState("");
@@ -130,18 +136,10 @@ export default function BlogPage() {
     setIsBlogModalOpen(true);
   };
 
-  // Open Edit Form Modal
-  const handleOpenEdit = (blog: BlogItem) => {
-    setEditingBlog(blog);
-    setFormCategory(blog.category.name);
-    setFormCategoryId(blog.category._id);
-    setFormTitle(blog.title);
-    setFormDescription(blog.description);
-    setFormBodyContent(blog.bodyContent);
-    setFormImage(blog.imageUrl || DEFAULT_BANNER_IMAGE);
-    setFormCategoryDropdownOpen(false);
-    setFormErrors({});
-    setIsBlogModalOpen(true);
+  const handleCategoryChange = (category: Category) => {
+    setFormCategory(category.name);
+    setFormCategoryId(category._id);
+    if (formErrors.category) setFormErrors((prev) => ({ ...prev, category: undefined }));
   };
 
   // Handle Image File Selection
@@ -347,23 +345,37 @@ export default function BlogPage() {
 
                     {/* ACTION (Edit / Delete) */}
                     <td className="py-4 px-3 whitespace-nowrap text-right">
-                      <div className="inline-flex items-center gap-3">
-                        <button
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
                           type="button"
-                          onClick={() => handleOpenEdit(blog)}
-                          className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          onClick={() => setSelectedBlog(blog)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 hover:!text-slate-600"
+                          title="View"
+                        >
+                          <span>View</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => router.push(`/blogs/${blog._id}/edit`)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 hover:!text-slate-600"
                           title="Edit"
                         >
-                          <SquarePen className="w-4 h-4" />
-                        </button>
-                        <button
+                          <span>Edit</span>
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => setBlogToDelete(blog)}
-                          className="text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-100 hover:!text-rose-500"
                           title="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          <span>Delete</span>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -399,8 +411,8 @@ export default function BlogPage() {
         </div>
       </div>
 
-      {/* ── Add / Edit Blog Modal ── */}
-      {isBlogModalOpen && (
+      {/* Legacy inline modal retained temporarily for compatibility; extracted dialog is rendered below. */}
+      {false && isBlogModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             {/* Header */}
@@ -448,7 +460,7 @@ export default function BlogPage() {
                       <div className="space-y-2">
                         <div className="relative w-full h-40 rounded-xl overflow-hidden shadow-xs">
                           <Image
-                            src={formImage}
+                            src={formImage || DEFAULT_BANNER_IMAGE}
                             alt="Preview"
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -639,7 +651,7 @@ export default function BlogPage() {
       )}
 
       {/* ── Delete Confirmation Modal ── */}
-      {blogToDelete && (
+      {false && blogToDelete && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
@@ -666,7 +678,7 @@ export default function BlogPage() {
             <div className="p-6 space-y-3 text-sm">
               <p className="text-slate-600 text-sm leading-relaxed">
                 Are you sure you want to delete the blog{" "}
-                <span className="font-semibold text-[#0F172A]">&quot;{blogToDelete.title}&quot;</span>?
+                <span className="font-semibold text-[#0F172A]">&quot;{blogToDelete?.title}&quot;</span>?
               </p>
               <div className="p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl text-xs text-amber-800">
                 This action cannot be undone. The article will be permanently removed.
@@ -693,6 +705,29 @@ export default function BlogPage() {
           </div>
         </div>
       )}
+
+      <BlogFormDialog
+        open={isBlogModalOpen}
+        onOpenChange={setIsBlogModalOpen}
+        editingBlog={editingBlog}
+        categories={categories}
+        formCategoryId={formCategoryId}
+        formTitle={formTitle}
+        formDescription={formDescription}
+        formBodyContent={formBodyContent}
+        formImage={formImage}
+        formErrors={formErrors}
+        fileInputRef={fileInputRef}
+        onFileChange={handleFileChange}
+        onCategoryChange={handleCategoryChange}
+        onTitleChange={setFormTitle}
+        onDescriptionChange={setFormDescription}
+        onBodyContentChange={setFormBodyContent}
+        onSubmit={handleFormSubmit}
+        isMutating={isMutating}
+      />
+      <BlogDetailsDialog blog={selectedBlog} open={Boolean(selectedBlog)} onOpenChange={(open) => !open && setSelectedBlog(null)} />
+      <BlogDeleteDialog blog={blogToDelete} open={Boolean(blogToDelete)} onOpenChange={(open) => !open && setBlogToDelete(null)} onConfirm={handleConfirmDeleteBlog} isMutating={isDeleting} />
     </div>
   );
 }
