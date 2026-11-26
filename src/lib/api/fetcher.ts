@@ -8,12 +8,14 @@ type NextFetchOptions = {
   payload?: unknown;
   token?: string;
   headers?: HeadersInit;
+  preservePagination?: boolean;
 };
 
 type ApiEnvelope<T> = {
   success: boolean;
   message?: string;
   data: T;
+  pagination?: unknown;
 };
 
 export class ApiError extends Error {
@@ -64,6 +66,7 @@ export async function nextFetch<T>({
   payload,
   token,
   headers,
+  preservePagination = false,
 }: NextFetchOptions): Promise<T> {
   const isFormData = typeof FormData !== "undefined" && payload instanceof FormData;
   const requestHeaders = new Headers(headers);
@@ -117,6 +120,12 @@ export async function nextFetch<T>({
   }
 
   if (isRecord(body) && "data" in body && "success" in body) {
+    if (preservePagination && "pagination" in body) {
+      return {
+        data: (body as ApiEnvelope<T>).data,
+        pagination: (body as ApiEnvelope<T>).pagination,
+      } as T;
+    }
     return (body as ApiEnvelope<T>).data;
   }
 

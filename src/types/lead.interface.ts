@@ -71,3 +71,8 @@ export interface LeadPagination {
   total: number;
   totalPage: number;
 }
+
+export interface LeadListResponse {
+  data: Lead[];
+  pagination: LeadPagination;
+}

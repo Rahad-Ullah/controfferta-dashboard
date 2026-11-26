@@ -12,6 +12,7 @@ import {
   User as UserIcon,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 export interface ServiceCategory {
@@ -283,9 +284,12 @@ export default function AllServicesTab() {
                         <div className="flex items-center gap-3.5">
                           <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-neutral-200 flex items-center justify-center">
                             {service.category?.image ? (
-                              <img
+                              <Image
                                 src={service.category.image}
                                 alt={service.name}
+                                width={40}
+                                height={40}
+                                unoptimized
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   (
@@ -340,9 +344,12 @@ export default function AllServicesTab() {
                         <div className="flex items-center gap-2.5">
                           <div className="relative w-7 h-7 rounded-full overflow-hidden shrink-0 bg-neutral-200 flex items-center justify-center text-xs">
                             {service.createdBy?.image ? (
-                              <img
+                              <Image
                                 src={service.createdBy.image}
                                 alt={creatorName}
+                                width={28}
+                                height={28}
+                                unoptimized
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   (
@@ -420,9 +427,12 @@ export default function AllServicesTab() {
             <div className="bg-[#0F172A] text-white p-6 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3.5">
                 {selectedService.category?.image ? (
-                  <img
+                  <Image
                     src={selectedService.category.image}
                     alt={selectedService.name}
+                    width={48}
+                    height={48}
+                    unoptimized
                     className="w-12 h-12 rounded-xl object-cover border border-white/20 shrink-0"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).style.display =
@@ -535,9 +545,12 @@ export default function AllServicesTab() {
                 </p>
                 <div className="flex items-center gap-3 pt-1">
                   {selectedService.createdBy?.image ? (
-                    <img
+                    <Image
                       src={selectedService.createdBy.image}
                       alt="Creator"
+                      width={40}
+                      height={40}
+                      unoptimized
                       className="w-10 h-10 rounded-full object-cover border border-black/10 shrink-0"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).style.display =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWRMutation from "swr/mutation";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -108,12 +108,12 @@ function VerifyOtpContent() {
       nextFetch<{ message?: string }>({ url: apiKeys.authForgotPassword, method: "POST", payload: arg }),
   );
 
-  const persist = (next: OtpTimers) => {
+  const persist = useCallback((next: OtpTimers) => {
     setExpiresAt(next.expiresAt);
     setResendAvailableAt(next.resendAvailableAt);
     setVerifyAvailableAt(next.verifyAvailableAt);
     writeTimers(email, next);
-  };
+  }, [email]);
 
   useEffect(() => {
     if (!email) return;
@@ -135,7 +135,7 @@ function VerifyOtpContent() {
     };
 
     persist(next);
-  }, [email]);
+  }, [email, persist]);
 
   useEffect(() => {
     // Calculate from deadlines so throttled background ticks don't stretch the countdowns.
