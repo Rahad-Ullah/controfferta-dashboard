@@ -13,9 +13,9 @@ export default function DashboardLayout({
     <AdminRouteGuard>
       <SidebarProvider>
         <Sidebar />
-        <SidebarInset className="bg-[#EDF0F3] flex flex-col overflow-hidden h-screen">
+        <SidebarInset className="flex min-h-svh flex-col overflow-hidden bg-[#EDF0F3]">
           <Header />
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 2xl:p-8 overflow-y-auto min-w-0 flex flex-col">
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 lg:p-6 2xl:p-8">
             {children}
           </main>
         </SidebarInset>

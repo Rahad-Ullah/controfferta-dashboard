@@ -227,7 +227,7 @@ export default function FaqPage() {
       </div>
 
       {/* ── Main White Card ── */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs space-y-6">
+      <div className="space-y-6 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-2xs sm:p-6">
         {/* Search & Category Filter Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           {/* Pill Search Input */}

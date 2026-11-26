@@ -172,7 +172,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* ── Main Container Card ── */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+      <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-2xs sm:p-6">
         {/* Top Filter Bar: All statuses Dropdown on the right */}
         <div className="flex justify-end mb-6">
           <div className="relative">

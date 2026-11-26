@@ -231,7 +231,7 @@ export default function BlogPage() {
       </div>
 
       {/* ── Main White Container Card ── */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-2xs">
+      <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-2xs sm:p-6">
         {error && <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">Failed to load blogs: {error.message}</p>}
         {/* Search & All Categories Dropdown Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
@@ -335,7 +335,7 @@ export default function BlogPage() {
                           onClick={() => setSelectedBlog(blog)}
                           variant="ghost"
                           size="sm"
-                          className="h-auto rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 hover:!text-slate-600"
+                          className="h-auto rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 hover:text-slate-600!"
                           title="View"
                         >
                           <span>View</span>
@@ -345,7 +345,7 @@ export default function BlogPage() {
                           onClick={() => router.push(`/blogs/${blog._id}/edit`)}
                           variant="ghost"
                           size="sm"
-                          className="h-auto rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 hover:!text-slate-600"
+                          className="h-auto rounded-full bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 hover:text-slate-600!"
                           title="Edit"
                         >
                           <span>Edit</span>
@@ -355,7 +355,7 @@ export default function BlogPage() {
                           onClick={() => setBlogToDelete(blog)}
                           variant="ghost"
                           size="sm"
-                          className="h-auto rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-100 hover:!text-rose-500"
+                          className="h-auto rounded-full border border-rose-100 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-100 hover:text-rose-500!"
                           title="Delete"
                         >
                           <span>Delete</span>

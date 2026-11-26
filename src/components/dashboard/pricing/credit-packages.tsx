@@ -234,7 +234,7 @@ export default function PricingPage() {
       </div>
 
       {/* ── Packages Grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
+      <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4 xl:gap-6">
         {packages.map((pkg) => {
           const isMostPopular = pkg.badge === "Most popular";
           const isRecommended = pkg.badge === "Recommended";
@@ -242,11 +242,7 @@ export default function PricingPage() {
           return (
             <div
               key={pkg.id}
-              className={`relative rounded-2xl p-6 border transition-all flex flex-col justify-between ${
-                isMostPopular
-                  ? "border-2 border-[#00BC7D] bg-emerald-50/20 shadow-xs"
-                  : "border-slate-200/80 bg-white shadow-2xs hover:shadow-xs"
-              }`}
+              className="group relative flex min-w-0 flex-col justify-between rounded-2xl border-2 border-slate-200/80 bg-white p-4 shadow-2xs transition-all hover:border-[#00BC7D] hover:bg-emerald-50/20 hover:shadow-xs sm:p-5 xl:p-6"
             >
               {/* Badge: Most Popular or Recommended */}
               {isMostPopular && (
@@ -265,9 +261,7 @@ export default function PricingPage() {
                 {/* Credits Count */}
                 <div>
                   <div
-                    className={`text-3xl sm:text-4xl font-extrabold tracking-tight ${
-                      isMostPopular ? "text-[#00BC7D]" : "text-[#0F172A]"
-                    }`}
+                    className="text-3xl font-extrabold tracking-tight text-[#0F172A] transition-colors group-hover:text-[#00BC7D] sm:text-4xl"
                   >
                     {pkg.credits}
                   </div>
@@ -314,7 +308,7 @@ export default function PricingPage() {
               </div>
 
               {/* Bottom Actions: Edit, Disable & Delete */}
-              <div className="flex items-center gap-2 pt-6 mt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2 pt-5 sm:flex-nowrap sm:pt-6">
                 <button
                   type="button"
                   onClick={() => handleOpenEdit(pkg)}
