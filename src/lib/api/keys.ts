@@ -36,6 +36,7 @@ export const apiKeys = {
   notificationRead: (id: string) => `/notifications/read/${id}`,
   notificationsReadAll: "/notifications/read-all",
   profile: "/profile",
+  settings: "/settings",
   disclaimers: "/disclaimers",
   disclaimer: (type: string) => `/disclaimers/${type}`,
 } as const;

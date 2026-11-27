@@ -1,685 +1,171 @@
 "use client";
 
-import { Plus, Trash2, X } from "lucide-react";
-import React, { useState } from "react";
+import { Link2, MapPin, Phone, Save, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { apiKeys } from "@/lib/api/keys";
+import { nextFetch } from "@/lib/api/fetcher";
 
-type GeneralTab = "About Us" | "How it Works" | "Contact";
-
-interface FeatureItem {
-  id: string;
-  title: string;
-  subtitle: string;
-}
-
-interface GeneralSection {
-  id: string;
-  sectionNumber: number;
-  title: string;
-  subtitle: string;
-  features?: FeatureItem[];
-}
-
-// ── INITIAL DATA FOR "About Us" TAB ──
-const INITIAL_ABOUT_SECTIONS: GeneralSection[] = [
-  {
-    id: "about-1",
-    sectionNumber: 1,
-    title: "About Us",
-    subtitle:
-      "CONTROFFERTA.IT is the Italian B2B marketplace for qualified lead generation. We connect businesses with customers...",
-  },
-  {
-    id: "about-2",
-    sectionNumber: 2,
-    title: "Our Mission",
-    subtitle:
-      "We believe every business deserves to connect with customers who are genuinely interested in their services...",
-    features: [
-      {
-        id: "af-1",
-        title: "Qualified Leads",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-      {
-        id: "af-2",
-        title: "Verified Data",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-      {
-        id: "af-3",
-        title: "Verified Data",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-      {
-        id: "af-4",
-        title: "Verified Data",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-    ],
-  },
-  {
-    id: "about-3",
-    sectionNumber: 3,
-    title: "Why lead quality matters",
-    subtitle:
-      "A poor lead is not just useless - it's a hidden cost in terms of time, resources, and missed opportunities.",
-    features: [
-      {
-        id: "af-5",
-        title: "Qualified Leads",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-      {
-        id: "af-6",
-        title: "Verified Data",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-      {
-        id: "af-7",
-        title: "Verified Data",
-        subtitle:
-          "We believe every business deserves to connect with their services...",
-      },
-    ],
-  },
-];
-
-// ── INITIAL DATA FOR "How it Works" TAB ──
-const INITIAL_HOW_SECTIONS: GeneralSection[] = [
-  {
-    id: "how-1",
-    sectionNumber: 1,
-    title: "How it works",
-    subtitle:
-      "A simple and transparent process for acquiring qualified customers.",
-  },
-  {
-    id: "how-2",
-    sectionNumber: 2,
-    title: "Acquire new customers",
-    subtitle: "Enter subtitle",
-    features: [
-      {
-        id: "hf-1",
-        title: "Browse requests",
-        subtitle: "Explore customer requests filtered...",
-      },
-      {
-        id: "hf-2",
-        title: "Pay only for what...",
-        subtitle: "Each lead has a transparent",
-      },
-      {
-        id: "hf-3",
-        title: "No wasted credits",
-        subtitle: "If a lead turns out to be",
-      },
-      {
-        id: "hf-4",
-        title: "Free preview",
-        subtitle: "If a lead turns out to be",
-      },
-      {
-        id: "hf-5",
-        title: "Pay only for what...",
-        subtitle: "If a lead turns out to be",
-      },
-    ],
-  },
-  {
-    id: "how-3",
-    sectionNumber: 3,
-    title: "Publish customer requests",
-    subtitle: "Enter subtitle",
-    features: [
-      {
-        id: "hf-6",
-        title: "Free preview",
-        subtitle: "Explore customer requests filtered...",
-      },
-      {
-        id: "hf-7",
-        title: "Pay only for what...",
-        subtitle: "Each lead has a transparent",
-      },
-      {
-        id: "hf-8",
-        title: "No wasted credits",
-        subtitle: "If a lead turns out to be",
-      },
-      {
-        id: "hf-9",
-        title: "Free preview",
-        subtitle: "If a lead turns out to be",
-      },
-      {
-        id: "hf-10",
-        title: "Pay only for what...",
-        subtitle: "If a lead turns out to be",
-      },
-    ],
-  },
-  {
-    id: "how-4",
-    sectionNumber: 4,
-    title: "The credit system",
-    subtitle:
-      "Pay only for the leads you choose to unlock. No subscription, no risk.",
-    features: [
-      {
-        id: "hf-11",
-        title: "Free preview",
-        subtitle: "Browse all leads at no cost. Evaluate freely before...",
-      },
-      {
-        id: "hf-12",
-        title: "Pay only for what...",
-        subtitle: "Each lead has a transparent credit cost. You only...",
-      },
-      {
-        id: "hf-13",
-        title: "No wasted credits",
-        subtitle: "If a lead turns out to be unreachable, we refund...",
-      },
-    ],
-  },
-];
-
-// ── INITIAL DATA FOR "Contact" TAB ──
-const INITIAL_CONTACT_SECTION: GeneralSection = {
-  id: "contact-1",
-  sectionNumber: 1,
-  title: "Contact",
-  subtitle: "We're here to help. Write to us or call us.",
+type Settings = {
+  welcomeCreditAmount?: number;
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    whatsApp?: string;
+    address?: Record<string, string>;
+    location?: { coordinates?: [number, number] };
+  };
+  socialLinks?: Record<string, string>;
 };
 
-const INITIAL_CONTACT_INFO = {
-  email: "info@controofferta.it",
-  phone: "+39 02 1234 5678",
-  address: "Via Milano 42, 20121 Milano (MI)",
-  hours: "Mon–Fri 9:00–18:00",
+type FormState = {
+  welcomeCreditAmount: string;
+  email: string;
+  phone: string;
+  whatsApp: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  [key: string]: string;
 };
+
+const socialFields = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "discord", "telegram"] as const;
+const emptyForm: FormState = {
+  welcomeCreditAmount: "0", email: "", phone: "", whatsApp: "",
+  line1: "", line2: "", city: "", state: "", postalCode: "", country: "",
+  facebook: "", instagram: "", twitter: "", linkedin: "", youtube: "",
+  tiktok: "", discord: "", telegram: "",
+};
+
+function toForm(data?: Settings | null): FormState {
+  const contact = data?.contactInfo;
+  const address = contact?.address ?? {};
+  return {
+    ...emptyForm,
+    welcomeCreditAmount: String(data?.welcomeCreditAmount ?? 0),
+    email: contact?.email ?? "", phone: sanitizePhone(contact?.phone ?? ""), whatsApp: sanitizePhone(contact?.whatsApp ?? ""),
+    line1: address.line1 ?? "", line2: address.line2 ?? "", city: address.city ?? "",
+    state: address.state ?? "", postalCode: address.postalCode ?? "", country: address.country ?? "",
+    ...Object.fromEntries(socialFields.map((key) => [key, data?.socialLinks?.[key] ?? ""])),
+  };
+}
+
+function validatePhone(value: string) {
+  if (!value.trim()) return "";
+  if (!/^\+?[0-9\s().-]+$/.test(value)) return "Use only digits, spaces, +, -, or parentheses";
+  const digitCount = value.replace(/\D/g, "").length;
+  if (digitCount < 7 || digitCount > 15) return "Phone number must contain 7–15 digits";
+  return "";
+}
+
+function sanitizePhone(value: string) {
+  const allowed = value.replace(/[^0-9\s().+-]/g, "");
+  if (allowed.startsWith("+")) {
+    return `+${allowed.slice(1).replace(/\+/g, "")}`;
+  }
+  return allowed.replace(/\+/g, "");
+}
+
+function Field({ label, value, onChange, type = "text", placeholder, error }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; error?: string }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>
+      <input type={type} value={value} placeholder={placeholder} aria-invalid={Boolean(error)} onChange={(event) => onChange(event.target.value)}
+        className={`w-full rounded-xl border bg-slate-50/70 px-3.5 py-2.5 text-sm text-[#0F172A] outline-none transition focus:bg-white focus:ring-2 ${error ? "border-rose-400 focus:border-rose-500 focus:ring-rose-200" : "border-slate-200 focus:border-[#00BC7D] focus:ring-[#00BC7D]/20"}`} />
+      {error && <span className="mt-1 block text-[11px] font-medium text-rose-600">{error}</span>}
+    </label>
+  );
+}
+
+function Card({ icon, title, description, children }: { icon: React.ReactNode; title: string; description: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-6">
+      <div className="mb-5 flex items-start gap-3 border-b border-slate-100 pb-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E6F8F2] text-[#00BC7D]">{icon}</div>
+        <div><h2 className="text-base font-bold text-[#0F172A]">{title}</h2><p className="mt-0.5 text-xs leading-relaxed text-slate-500">{description}</p></div>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default function PlatformGeneralInfoPage() {
-  const [activeTab, setActiveTab] = useState<GeneralTab>("About Us");
+  const { data, error, isLoading } = useSWR<Settings | null>(apiKeys.settings);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [phoneErrors, setPhoneErrors] = useState<{ phone?: string; whatsApp?: string }>({});
+  const [loaded, setLoaded] = useState(false);
+  const { trigger, isMutating } = useSWRMutation(apiKeys.settings, (url: string, { arg }: { arg: Record<string, unknown> }) =>
+    nextFetch<Settings>({ url, method: "POST", payload: arg }), { revalidate: true });
 
-  // State for sections per tab
-  const [aboutSections, setAboutSections] = useState<GeneralSection[]>(
-    INITIAL_ABOUT_SECTIONS
-  );
-  const [howSections, setHowSections] = useState<GeneralSection[]>(
-    INITIAL_HOW_SECTIONS
-  );
-  const [contactSection, setContactSection] = useState<GeneralSection>(
-    INITIAL_CONTACT_SECTION
-  );
-  const [contactInfo, setContactInfo] = useState(INITIAL_CONTACT_INFO);
+  useEffect(() => {
+    if (!loaded && data !== undefined) { setForm(toForm(data)); setLoaded(true); }
+  }, [data, loaded]);
 
-  const updateCurrentSections = (
-    updater: (prev: GeneralSection[]) => GeneralSection[]
-  ) => {
-    if (activeTab === "About Us") {
-      setAboutSections(updater);
-    } else if (activeTab === "How it Works") {
-      setHowSections(updater);
+  const update = (key: string, value: string) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (key === "phone" || key === "whatsApp") {
+      setPhoneErrors((current) => ({ ...current, [key]: undefined }));
     }
   };
 
-  // Add a new section
-  const handleAddSection = () => {
-    updateCurrentSections((prev) => {
-      const nextNumber = prev.length + 1;
-      const newSection: GeneralSection = {
-        id: `sec-${Date.now()}`,
-        sectionNumber: nextNumber,
-        title: `Section ${nextNumber}`,
-        subtitle: "Enter section description or subtitle...",
-        features: [],
-      };
-      return [...prev, newSection];
-    });
-    toast.success("New section added");
+  const updatePhone = (key: "phone" | "whatsApp", value: string) => {
+    update(key, sanitizePhone(value));
   };
 
-  // Delete a section
-  const handleDeleteSection = (id: string) => {
-    updateCurrentSections((prev) => prev.filter((s) => s.id !== id));
-    toast.success("Section removed");
-  };
-
-  // Update Section Title & Subtitle
-  const handleUpdateTitle = (id: string, value: string) => {
-    if (activeTab === "Contact") {
-      setContactSection((prev) => ({ ...prev, title: value }));
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const credits = Number(form.welcomeCreditAmount);
+    if (!Number.isInteger(credits) || credits < 0) return toast.error("Welcome credits must be a whole number of 0 or more");
+    const nextPhoneErrors = { phone: validatePhone(form.phone), whatsApp: validatePhone(form.whatsApp) };
+    setPhoneErrors(nextPhoneErrors);
+    if (nextPhoneErrors.phone || nextPhoneErrors.whatsApp) {
+      toast.error("Please enter valid phone numbers");
       return;
     }
-    updateCurrentSections((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: value } : s))
-    );
-  };
-
-  const handleUpdateSubtitle = (id: string, value: string) => {
-    if (activeTab === "Contact") {
-      setContactSection((prev) => ({ ...prev, subtitle: value }));
-      return;
+    try {
+      await trigger({
+        welcomeCreditAmount: credits,
+        contactInfo: {
+          email: form.email, phone: form.phone, whatsApp: form.whatsApp,
+          address: { line1: form.line1, line2: form.line2, city: form.city, state: form.state, postalCode: form.postalCode, country: form.country },
+        },
+        socialLinks: Object.fromEntries(socialFields.map((key) => [key, form[key]])),
+      }, { throwOnError: true });
+      toast.success("Platform settings saved");
+    } catch (saveError) {
+      toast.error(saveError instanceof Error ? saveError.message : "Unable to save settings");
     }
-    updateCurrentSections((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, subtitle: value } : s))
-    );
   };
 
-  // Add Feature to a section
-  const handleAddFeature = (sectionId: string) => {
-    updateCurrentSections((prev) =>
-      prev.map((s) => {
-        if (s.id === sectionId) {
-          const currentFeatures = s.features || [];
-          const newFeature: FeatureItem = {
-            id: `feat-${Date.now()}`,
-            title: "New Feature",
-            subtitle: "Enter feature details...",
-          };
-          return { ...s, features: [...currentFeatures, newFeature] };
-        }
-        return s;
-      })
-    );
-    toast.success("Feature added");
-  };
-
-  // Remove Feature from a section
-  const handleRemoveFeature = (sectionId: string, featureId: string) => {
-    updateCurrentSections((prev) =>
-      prev.map((s) => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            features: (s.features || []).filter((f) => f.id !== featureId),
-          };
-        }
-        return s;
-      })
-    );
-    toast.success("Feature removed");
-  };
-
-  // Update a Feature inside a section
-  const handleUpdateFeature = (
-    sectionId: string,
-    featureId: string,
-    field: "title" | "subtitle",
-    val: string
-  ) => {
-    updateCurrentSections((prev) =>
-      prev.map((s) => {
-        if (s.id === sectionId) {
-          return {
-            ...s,
-            features: (s.features || []).map((f) =>
-              f.id === featureId ? { ...f, [field]: val } : f
-            ),
-          };
-        }
-        return s;
-      })
-    );
-  };
-
-  // Save Section
-  const handleSaveSection = (title: string) => {
-    toast.success(`"${title}" saved successfully`);
-  };
-
-  // Save Contact Page
-  const handleSaveContact = () => {
-    toast.success("Contact information saved successfully");
-  };
-
-  // Render a standard section card
-  const renderSectionCard = (sec: GeneralSection, isFullWidth = false) => {
-    return (
-      <div
-        key={sec.id}
-        className={`bg-[#F4F6F9] border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-4 shadow-2xs ${
-          isFullWidth ? "w-full" : ""
-        }`}
-      >
-        {/* Section Header */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-700">
-            Section {sec.sectionNumber}
-          </span>
-          <button
-            type="button"
-            onClick={() => handleDeleteSection(sec.id)}
-            className="text-rose-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
-            title="Delete section"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Title */}
-        <div>
-          <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-            Title
-          </label>
-          <input
-            type="text"
-            value={sec.title}
-            onChange={(e) => handleUpdateTitle(sec.id, e.target.value)}
-            className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
-          />
-        </div>
-
-        {/* Subtitle */}
-        <div>
-          <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-            Subtitle
-          </label>
-          <textarea
-            value={sec.subtitle}
-            onChange={(e) => handleUpdateSubtitle(sec.id, e.target.value)}
-            rows={2}
-            className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all resize-none leading-relaxed"
-          />
-        </div>
-
-        {/* Features List */}
-        {sec.features && (
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3">
-              {sec.features.map((feat) => (
-                <div
-                  key={feat.id}
-                  className="relative bg-[#E2E8F0]/50 border border-slate-300/60 rounded-xl p-3 space-y-2 group"
-                >
-                  {/* Red Circle Close Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveFeature(sec.id, feat.id)}
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center cursor-pointer shadow-xs transition-colors"
-                    title="Remove feature"
-                  >
-                    <X className="w-2.5 h-2.5 stroke-[3]" />
-                  </button>
-
-                  <div>
-                    <span className="text-[10px] font-semibold text-slate-500 block mb-1">
-                      Title
-                    </span>
-                    <input
-                      type="text"
-                      value={feat.title}
-                      onChange={(e) =>
-                        handleUpdateFeature(
-                          sec.id,
-                          feat.id,
-                          "title",
-                          e.target.value
-                        )
-                      }
-                      className="w-full bg-[#F8FAFC] border border-slate-300/70 rounded-lg px-2 py-1 text-xs text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#00BC7D]"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-semibold text-slate-500 block mb-1">
-                      Subtitle
-                    </span>
-                    <textarea
-                      value={feat.subtitle}
-                      onChange={(e) =>
-                        handleUpdateFeature(
-                          sec.id,
-                          feat.id,
-                          "subtitle",
-                          e.target.value
-                        )
-                      }
-                      rows={2}
-                      className="w-full bg-[#F8FAFC] border border-slate-300/70 rounded-lg px-2 py-1 text-[11px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#00BC7D] resize-none leading-tight"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* + Add Feature Button */}
-            <div className="pt-2 flex justify-center">
-              <button
-                type="button"
-                onClick={() => handleAddFeature(sec.id)}
-                className="px-4 py-1.5 rounded-full border border-[#00BC7D] text-[#00BC7D] hover:bg-emerald-50 text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Feature</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Section Bottom Save Button */}
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => handleSaveSection(sec.title)}
-            className="w-full py-3.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer text-center"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    );
-  };
+  if (isLoading) return <div className="rounded-2xl border border-slate-200/70 bg-white p-8 text-sm text-slate-500">Loading platform settings...</div>;
+  if (error) return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">Unable to load platform settings. Please refresh and try again.</div>;
 
   return (
-    <div className="w-full space-y-6 pb-12 select-none font-sans">
-      {/* ── Page Header Title ── */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">
-          Platform General Information
-        </h1>
+    <div className="w-full space-y-6 pb-12 font-sans">
+      <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#00BC7D]">Configuration</p><h1 className="text-2xl font-bold tracking-tight text-[#0F172A] sm:text-3xl">Platform Settings</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Manage the contact details, welcome credits, location, and social channels shown across the platform.</p></div>
       </div>
-
-      {/* ── Tabs & + Add Section Button ── */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-px">
-        <div className="flex items-center gap-8">
-          {(["About Us", "How it Works", "Contact"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 text-sm font-semibold transition-all cursor-pointer border-b-2 -mb-px ${
-                activeTab === tab
-                  ? "border-[#00BC7D] text-[#00BC7D]"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* + Add Section Button (For About Us and How it Works) */}
-        {activeTab !== "Contact" && (
-          <button
-            type="button"
-            onClick={handleAddSection}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Add Section</span>
-          </button>
-        )}
-      </div>
-
-      {/* ── TAB 1: About Us ── */}
-      {activeTab === "About Us" && (
-        <div className="space-y-6">
-          {/* Section 1 (Full width) */}
-          {aboutSections[0] && renderSectionCard(aboutSections[0], true)}
-
-          {/* Section 2 & 3 in a 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {aboutSections[1] && renderSectionCard(aboutSections[1])}
-            {aboutSections[2] && renderSectionCard(aboutSections[2])}
-          </div>
-
-          {/* Any extra sections added dynamically */}
-          {aboutSections.slice(3).map((sec) => renderSectionCard(sec, true))}
-        </div>
-      )}
-
-      {/* ── TAB 2: How it Works ── */}
-      {activeTab === "How it Works" && (
-        <div className="space-y-6">
-          {/* Section 1 (Full width) */}
-          {howSections[0] && renderSectionCard(howSections[0], true)}
-
-          {/* Section 2 & 3 in 2-Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {howSections[1] && renderSectionCard(howSections[1])}
-            {howSections[2] && renderSectionCard(howSections[2])}
-          </div>
-
-          {/* Section 4 (The credit system - Full width) */}
-          {howSections[3] && renderSectionCard(howSections[3], true)}
-
-          {/* Any extra sections added dynamically */}
-          {howSections.slice(4).map((sec) => renderSectionCard(sec, true))}
-        </div>
-      )}
-
-      {/* ── TAB 3: Contact ── */}
-      {activeTab === "Contact" && (
-        <div className="space-y-6">
-          {/* Section 1 Card */}
-          <div className="bg-[#F4F6F9] border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700">
-                Section {contactSection.sectionNumber}
-              </span>
-              <button
-                type="button"
-                className="text-rose-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
-                title="Delete section"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                Title
-              </label>
-              <input
-                type="text"
-                value={contactSection.title}
-                onChange={(e) => handleUpdateTitle(contactSection.id, e.target.value)}
-                className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                Subtitle
-              </label>
-              <textarea
-                value={contactSection.subtitle}
-                onChange={(e) =>
-                  handleUpdateSubtitle(contactSection.id, e.target.value)
-                }
-                rows={2}
-                className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all resize-none leading-relaxed"
-              />
-            </div>
-          </div>
-
-          {/* Information Card */}
-          <div className="bg-[#F4F6F9] border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-5 shadow-2xs">
-            <div className="pb-3 border-b border-slate-200/70">
-              <h3 className="text-xs font-semibold text-slate-700">
-                Information
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={contactInfo.email}
-                  onChange={(e) =>
-                    setContactInfo((prev) => ({ ...prev, email: e.target.value }))
-                  }
-                  className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                  Phone
-                </label>
-                <input
-                  type="text"
-                  value={contactInfo.phone}
-                  onChange={(e) =>
-                    setContactInfo((prev) => ({ ...prev, phone: e.target.value }))
-                  }
-                  className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  value={contactInfo.address}
-                  onChange={(e) =>
-                    setContactInfo((prev) => ({ ...prev, address: e.target.value }))
-                  }
-                  className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                  Hours
-                </label>
-                <input
-                  type="text"
-                  value={contactInfo.hours}
-                  onChange={(e) =>
-                    setContactInfo((prev) => ({ ...prev, hours: e.target.value }))
-                  }
-                  className="w-full bg-[#EAEFF5]/80 border border-slate-200/90 rounded-2xl px-4 py-2.5 text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Bottom Save Button */}
-          <button
-            type="button"
-            onClick={handleSaveContact}
-            className="w-full py-3.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer text-center"
-          >
-            Save
-          </button>
-        </div>
-      )}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Card icon={<Sparkles className="h-4 w-4" />} title="Welcome credits" description="Set the number of credits new users receive when they join.">
+          <div className="max-w-sm"><Field label="Welcome credit amount" type="number" value={form.welcomeCreditAmount} onChange={(value) => update("welcomeCreditAmount", value)} placeholder="0" /><p className="mt-1.5 text-[11px] text-slate-400">Use a whole number. Negative values are not accepted.</p></div>
+        </Card>
+        <Card icon={<Phone className="h-4 w-4" />} title="Contact information" description="Keep the platform’s primary support channels up to date.">
+          <div className="grid gap-4 sm:grid-cols-3"><Field label="Email" type="email" value={form.email} onChange={(value) => update("email", value)} placeholder="support@example.com" /><Field label="Phone" value={form.phone} onChange={(value) => updatePhone("phone", value)} placeholder="+39 ..." error={phoneErrors.phone} /><Field label="WhatsApp" value={form.whatsApp} onChange={(value) => updatePhone("whatsApp", value)} placeholder="+39 ..." error={phoneErrors.whatsApp} /></div>
+        </Card>
+        <Card icon={<MapPin className="h-4 w-4" />} title="Business address" description="Add the address used for platform contact information.">
+          <div className="grid gap-4 sm:grid-cols-2"><Field label="Address line 1" value={form.line1} onChange={(value) => update("line1", value)} /><Field label="Address line 2" value={form.line2} onChange={(value) => update("line2", value)} /><Field label="City" value={form.city} onChange={(value) => update("city", value)} /><Field label="State / region" value={form.state} onChange={(value) => update("state", value)} /><Field label="Postal code" value={form.postalCode} onChange={(value) => update("postalCode", value)} /><Field label="Country" value={form.country} onChange={(value) => update("country", value)} /></div>
+        </Card>
+        <Card icon={<Link2 className="h-4 w-4" />} title="Social links" description="Optional URLs for the platform’s social profiles. Leave a field empty if it does not apply.">
+          <div className="grid gap-4 sm:grid-cols-2">{socialFields.map((key) => <Field key={key} label={key === "twitter" ? "X / Twitter" : key[0].toUpperCase() + key.slice(1)} type="url" value={form[key]} onChange={(value) => update(key, value)} placeholder="https://" />)}</div>
+        </Card>
+        <div className="flex justify-end border-t border-slate-200/80 pt-5"><button type="submit" disabled={isMutating} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#00BC7D] px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-[#00a86b] disabled:cursor-not-allowed disabled:opacity-60"><Save className="h-4 w-4" />{isMutating ? "Saving..." : "Save platform settings"}</button></div>
+      </form>
     </div>
   );
 }
+
