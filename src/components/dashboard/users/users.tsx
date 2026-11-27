@@ -111,7 +111,7 @@ export default function UserManagementPage() {
         method: "PATCH",
         payload: { status: arg.status },
       }),
-    { populateCache: false, revalidate: false },
+    { revalidate: true },
   );
 
   const toggleUserStatus = async (user: ManagedUser) => {

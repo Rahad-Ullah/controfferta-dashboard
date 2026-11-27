@@ -79,6 +79,8 @@ Use the same `apiKeys` value. The mutation fetcher receives that key as `url`, a
 
 `populateCache: false` keeps a list cache from being replaced by a single created record. `revalidate: true` refetches every `useSWR(apiKeys.users)` after the write succeeds.
 
+When a screen reads with query parameters (for example `apiKeys.users(query)` for paginated search), the mutation key is the bare collection key (`apiKeys.users()`). `revalidate: true` revalidates the base collection cache, but the screen should additionally call `mutate(readKey)` after the write to revalidate the specific paginated view that the user sees.
+
 ```tsx
 "use client";
 

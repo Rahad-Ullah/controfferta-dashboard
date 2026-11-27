@@ -140,48 +140,6 @@ const TRANSACTIONS: Transaction[] = [
   },
 ];
 
-const CATEGORIES: CategoryRevenue[] = [
-  { name: "Windows & Doors", amount: "€ 16,529", percentage: 88 },
-  { name: "Solar Panels", amount: "€ 16,529", percentage: 70 },
-  { name: "Construction", amount: "€ 16,529", percentage: 65 },
-  { name: "Moving", amount: "€ 16,529", percentage: 48 },
-  { name: "Other", amount: "€ 16,529", percentage: 32 },
-];
-
-const ACTIVITIES: Activity[] = [
-  {
-    id: "1",
-    content: (
-      <span>
-        <strong className="font-semibold text-[#0F172A]">Marco Ferretti</strong>{" "}
-        unlocked a lead{" "}
-        <strong className="font-semibold text-[#0F172A]">&quot;Windows Milano&quot;</strong>
-      </span>
-    ),
-    time: "5 min ago",
-  },
-  {
-    id: "2",
-    content: (
-      <span>
-        <strong className="font-semibold text-[#0F172A]">New transaction: Growth package</strong>{" "}
-        150 credits - € 129
-      </span>
-    ),
-    time: "23 min ago",
-  },
-  {
-    id: "3",
-    content: (
-      <span>
-        <strong className="font-semibold text-[#0F172A]">Giulia Esposito</strong>{" "}
-        published 3 new leads
-      </span>
-    ),
-    time: "1 hour ago",
-  },
-];
-
 export default function OverviewPage() {
   const { data: overview } = useSWR<AdminDashboardOverview>(
     apiKeys.analyticsAdminOverview,

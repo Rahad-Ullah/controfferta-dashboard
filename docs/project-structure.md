@@ -16,16 +16,16 @@ This app is the CONTROFFERTA.IT admin dashboard. Source lives under `src/`. Path
 | Path | Put it here |
 |---|---|
 | `app/` | Routes only. One `page.tsx` per URL. Layouts wrap a segment. |
-| `app/api/` | Route handlers this Next app owns, such as auth cookie set and clear. |
+| `app/api/` | Route handlers this Next app owns. None exist yet; do not add unless a server endpoint is required. |
 | `components/ui/` | Shared primitives (button, input, dialog). |
-| `components/layout/` | Admin chrome used on every dashboard screen. `sidebar.tsx` and `header.tsx` stay here because `app/(main)/layout.tsx` renders them on every route. |
+| `components/layout/` | Admin chrome used on every dashboard screen. `sidebar.tsx` and `header.tsx` stay here because `app/(dashboard)/layout.tsx` renders them on every route. |
 | `components/<route>/` | Sections for one screen. The folder name matches the URL segment: `home/`, `users/`, `leads/`, `categories/`, `blogs/`, `pricing/`, `transactions/`, `notifications/`, `settings/`, `faqs/`, `disclaimer/`. |
 | `components/swr-config.tsx` | Root SWR defaults. `app/layout.tsx` wraps every page with `SwrDefaults`. |
 | `lib/` | Shared modules that are not React components. |
 | `lib/api/keys.ts` | Every SWR cache key. |
 | `lib/api/fetcher.ts` | `nextFetch` and `swrFetcher`. |
 | `lib/env-config.ts` | `envConfig()`. Public and server env values. |
-| `lib/auth-cookie.ts` | HttpOnly `auth_token` helpers. Server only. Add this when login is connected. |
+| `lib/auth-cookie.ts` | HttpOnly `auth_token` helpers. Server only. Not yet created — the dashboard reads the session cookie via `nextFetch` with `credentials: "include"`. |
 | `lib/placeholders.ts` | Static screen data until a screen calls the API. |
 | `utils/` | Small helpers that are not the API or auth layer. Prefer `lib/` for new shared modules. |
 | `docs/` | Instructions for agents. Update the matching doc when a rule changes. |
@@ -37,11 +37,11 @@ Route groups choose the layout. A group name in parentheses is not part of the U
 
 | Group | Layout | Screens |
 |---|---|---|
-| `(main)` | `app/(main)/layout.tsx` | Admin shell: `/`, `/users`, `/leads`, `/leads/import`, `/categories`, `/blogs`, `/pricing`, `/transactions`, `/notifications`, `/settings`, `/faqs`, `/disclaimer/privacy_policy`, `/disclaimer/terms_of_service`, `/disclaimer/general` |
+| `(dashboard)` | `app/(dashboard)/layout.tsx` | Admin shell: `/`, `/users`, `/leads`, `/leads/import`, `/categories`, `/blogs` (+ `/blogs/new`, `/blogs/[id]/edit`), `/credit-packages`, `/transactions`, `/notifications`, `/settings`, `/platform-settings`, `/faqs`, `/disclaimer` (+ `/disclaimer/[type]`, `/disclaimer/general`) |
+| `(auth)` | `app/(auth)/layout.tsx` | Auth screens: `/login`, `/forgot-password`, `/verify-otp`, `/reset-password`, `/password-changed` |
 
-There is no auth group yet. When login is connected, add `app/(auth)/layout.tsx` for login and password recovery, and keep the session in an HttpOnly cookie.
-
-- A new admin screen goes in `app/(main)/<segment>/page.tsx`.
+- A new admin screen goes in `app/(dashboard)/<segment>/page.tsx`.
+- Auth screens live under `app/(auth)/<segment>/page.tsx`.
 - Do not invent a `pages/` directory.
 - Keep route files thin. Render a component from `components/<route>/`. Do not build a large UI inside `page.tsx`.
 
@@ -51,7 +51,7 @@ There is no auth group yet. When login is connected, add `app/(auth)/layout.tsx`
 2. Read with `useSWR(apiKeys.someKey)` and write with `useSWRMutation(apiKeys.someKey, ...)`. See `docs/swr.md`.
 3. Call the API only through `nextFetch`.
 4. Put the screen component in `components/<route>/<name>.tsx` and export it as PascalCase.
-5. Until the endpoint exists, read static data from `lib/placeholders.ts`.
+5. Until the endpoint exists, keep static sample data locally in the screen component (per `AGENTS.md`). `lib/placeholders.ts` is the designated home for shared sample data once a screen is wired to the API; it is currently unused because no screen imports from it.
 6. Read configuration through `envConfig()` in `lib/env-config.ts`. Do not add another env module.
 7. Do not put the access token in `localStorage`, `sessionStorage`, or `document.cookie`.
 
@@ -60,4 +60,4 @@ There is no auth group yet. When login is connected, add `app/(auth)/layout.tsx`
 - Do not create `camelCase` or `PascalCase` file names.
 - Do not add a second data cache. SWR is the client cache. Do not add Redux or RTK Query.
 - Do not leave a new helper in the repository root.
-- Do not put screen data inline in `page.tsx` once `lib/placeholders.ts` exists for that screen.
+- Do not put screen data inline in `page.tsx` — render a component from `components/<route>/` instead.
