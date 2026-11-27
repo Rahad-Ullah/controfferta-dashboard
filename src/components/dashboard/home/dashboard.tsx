@@ -30,6 +30,14 @@ interface AdminDashboardOverview {
   creditsPurchased: number;
 }
 
+interface AdminCategoryRevenue {
+  categoryId: string;
+  categoryName: string;
+  revenue: number;
+  currency: string;
+  percentage: number;
+}
+
 function getTransactionStatusClasses(status: string) {
   switch (status.toLowerCase()) {
     case "completed":
@@ -177,6 +185,9 @@ const ACTIVITIES: Activity[] = [
 export default function OverviewPage() {
   const { data: overview } = useSWR<AdminDashboardOverview>(
     apiKeys.analyticsAdminOverview,
+  );
+  const { data: categoryRevenue = [] } = useSWR<AdminCategoryRevenue[]>(
+    apiKeys.analyticsAdminRevenueByCategory,
   );
   const { data: transactionsResponse } = useSWR<unknown>(
     apiKeys.transactions("limit=7"),
@@ -351,11 +362,11 @@ export default function OverviewPage() {
               Revenue by Category
             </h2>
             <div className="space-y-4">
-              {CATEGORIES.map((cat) => (
-                <div key={cat.name}>
+              {categoryRevenue.map((cat) => (
+                <div key={cat.categoryId}>
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate font-medium text-slate-700">{cat.name}</span>
-                    <span className="shrink-0 font-bold text-[#0F172A]">{cat.amount}</span>
+                    <span className="min-w-0 truncate font-medium text-slate-700">{cat.categoryName}</span>
+                    <span className="shrink-0 font-bold text-[#0F172A]">€ {cat.revenue.toLocaleString()} {cat.currency !== "EUR" ? cat.currency : ""}</span>
                   </div>
                   <div className="h-2 w-full bg-slate-100 rounded-full mt-2 overflow-hidden">
                     <div

@@ -38,6 +38,7 @@ export const apiKeys = {
   profile: "/profile",
   settings: "/settings",
   analyticsAdminOverview: "/analytics/admin/overview",
+  analyticsAdminRevenueByCategory: "/analytics/admin/revenue-by-category",
   disclaimers: "/disclaimers",
   disclaimer: (type: string) => `/disclaimers/${type}`,
 } as const;
