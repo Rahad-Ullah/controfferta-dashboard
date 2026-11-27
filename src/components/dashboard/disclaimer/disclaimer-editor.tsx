@@ -2,15 +2,28 @@
 
 import TipTapEditor from "@/components/dashboard/disclaimer/rich-text-editor";
 import { useParams } from "next/navigation";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
 import GeneralInformation from "@/components/dashboard/disclaimer/general-information";
+import { apiKeys } from "@/lib/api/keys";
+import { nextFetch } from "@/lib/api/fetcher";
 
-const DEFAULT_CONTENT = `<p>Lorem ipsum dolor sit amet consectetur. Fringilla a cras vitae orci. Egestas duis id nisl sed ante congue scelerisque. Eleifend facilisis aliquet tempus morbi leo sagittis. Pellentesque odio amet turpis habitant. Imperdiet tincidunt nisl consectetur hendrerit accumsan vehicula imperdiet mattis. Neque a vitae diam pharetra duis habitasse convallis luctus pulvinar. Pharetra nunc morbi elementum nisl magnis convallis arcu enim tortor. Cursus a sed tortor enim mi imperdiet massa donec mauris. Sem morbi morbi posuere faucibus. Cras risus ultrices duis pharetra sit porttitor elementum sagittis elementum. Ut vitae blandit pulvinar fermentum in id sed. At pellentesque non semper eget egestas vulputate id volutpat quis. Dolor etiam sodales at elementum mattis nibh quam placerat ut. Suspendisse est adipiscing proin et. Leo nisi bibendum donec ac non eget euismod suscipit. At ultricies nullam ipsum tellus. Non dictum orci at tortor convallis tortor suspendisse. Ac duis senectus arcu nullam in suspendisse vitae. Tellus interdum enim lorem vel morbi lectus.</p><p><br></p><p>Lorem ipsum dolor sit amet consectetur. Fringilla a cras vitae orci. Egestas duis id nisl sed ante congue scelerisque. Eleifend facilisis aliquet tempus morbi leo sagittis. Pellentesque odio amet turpis habitant. Imperdiet tincidunt nisl consectetur hendrerit accumsan vehicula imperdiet mattis. Neque a vitae diam pharetra duis habitasse convallis luctus pulvinar. Pharetra nunc morbi elementum nisl magnis convallis arcu enim tortor. Cursus a sed tortor enim mi imperdiet massa donec mauris. Sem morbi morbi posuere faucibus. Cras risus ultrices duis pharetra sit porttitor elementum sagittis elementum. Ut vitae blandit pulvinar fermentum in id sed. At pellentesque non semper eget egestas vulputate id volutpat quis. Dolor etiam sodales at elementum mattis nibh quam placerat ut. Suspendisse est adipiscing proin et. Leo nisi bibendum donec ac non eget euismod suscipit. At ultricies nullam ipsum tellus. Non dictum orci at tortor convallis tortor suspendisse. Ac duis senectus arcu nullam in suspendisse vitae. Tellus interdum enim lorem vel morbi lectus.</p>`;
+interface Disclaimer {
+  type: string;
+  content: string;
+}
 
 export default function DisclaimerTypePage() {
   const params = useParams();
   const type = (params?.type as string) || "privacy_policy";
+  const disclaimerType =
+    type === "privacy"
+      ? "privacy_policy"
+      : type === "terms"
+        ? "terms_of_service"
+        : type;
 
   // Determine Title based on URL slug
   const title = useMemo(() => {
@@ -30,8 +43,24 @@ export default function DisclaimerTypePage() {
       .join(" ");
   }, [type]);
 
-  const [content, setContent] = useState(DEFAULT_CONTENT);
+  const [content, setContent] = useState("");
   const [resetTrigger, setResetTrigger] = useState(false);
+  const disclaimerKey =
+    type === "general" ? null : apiKeys.disclaimer(disclaimerType);
+  const { data: disclaimer, error, isLoading } = useSWR<Disclaimer>(
+    disclaimerKey,
+  );
+  const { trigger: updateDisclaimer, isMutating: isSaving } = useSWRMutation(
+    apiKeys.disclaimers,
+    (url: string, { arg }: { arg: Disclaimer }) =>
+      nextFetch<Disclaimer>({ url, method: "POST", payload: arg }),
+    { revalidate: true },
+  );
+
+  useEffect(() => {
+    setContent(disclaimer?.content ?? "");
+    setResetTrigger((previous) => !previous);
+  }, [disclaimer?.content, disclaimerType]);
 
   // If general information, render the dedicated structured Platform General Info view
   if (type === "general") {
@@ -39,14 +68,30 @@ export default function DisclaimerTypePage() {
   }
 
   const handleUpdate = () => {
-    toast.success(`${title} updated successfully`);
+    void (async () => {
+      try {
+        await updateDisclaimer(
+          { type: disclaimerType, content: content.trim() },
+          { throwOnError: true },
+        );
+        toast.success(`${title} updated successfully`);
+      } catch (updateError) {
+        toast.error(
+          updateError instanceof Error
+            ? updateError.message
+            : `Unable to update ${title}`,
+        );
+      }
+    })();
   };
 
   const handleCancel = () => {
-    setContent(DEFAULT_CONTENT);
+    setContent(disclaimer?.content ?? "");
     setResetTrigger((prev) => !prev);
     toast("Changes discarded", { icon: "ℹ️" });
   };
+
+  const isNotFound = error && error.status === 404;
 
   return (
     <div className="w-full flex-1 flex flex-col space-y-6 pb-8 select-none font-sans">
@@ -61,36 +106,29 @@ export default function DisclaimerTypePage() {
           </p>
         </div>
 
-        {/* Quick Header Action Buttons */}
-        <div className="flex items-center gap-3 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-5 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleUpdate}
-            className="px-6 py-2 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
-          >
-            Update
-          </button>
-        </div>
       </div>
 
       {/* ── Full Width & Height White Card Text Editor Box ── */}
       <div className="w-full flex-1 flex flex-col bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/70 shadow-2xs min-h-[580px]">
         <div className="flex-1 flex flex-col w-full h-full min-h-0">
-          <TipTapEditor
-            content={content}
-            onChange={setContent}
-            resetTrigger={resetTrigger}
-            className="flex-1 flex flex-col w-full h-full"
-            minHeight="460px"
-            maxHeight="none"
-          />
+          {isLoading ? (
+            <div className="flex min-h-[460px] flex-1 items-center justify-center text-sm text-slate-400">
+              Loading {title}...
+            </div>
+          ) : error && !isNotFound ? (
+            <div className="flex min-h-[460px] flex-1 items-center justify-center text-sm text-rose-500">
+              Unable to load {title}. Please try again.
+            </div>
+          ) : (
+            <TipTapEditor
+              content={content}
+              onChange={setContent}
+              resetTrigger={resetTrigger}
+              className="flex-1 flex flex-col w-full h-full"
+              minHeight="460px"
+              maxHeight="none"
+            />
+          )}
         </div>
 
         {/* Card Footer Actions */}
@@ -106,9 +144,10 @@ export default function DisclaimerTypePage() {
           <button
             type="button"
             onClick={handleUpdate}
-            className="px-8 py-2.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer"
+            disabled={isSaving || isLoading || Boolean(error && !isNotFound)}
+            className="px-8 py-2.5 rounded-full bg-[#00BC7D] hover:bg-[#00a86b] text-white font-semibold text-sm shadow-xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Update {title}
+            {isSaving ? "Saving..." : `Update ${title}`}
           </button>
         </div>
       </div>

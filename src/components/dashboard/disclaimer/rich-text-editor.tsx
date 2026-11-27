@@ -147,10 +147,10 @@ export default function TipTapEditor({
 
   useEffect(() => {
     if (resetTrigger && editor) {
-      editor.commands.setContent("");
-      editorInitialized.current = false;
+      editor.commands.setContent(content || "");
+      editorInitialized.current = true;
     }
-  }, [resetTrigger, editor]);
+  }, [content, resetTrigger, editor]);
 
   useEffect(() => {
     if (editor && content !== editor.getHTML() && !isUpdatingContent.current) {
