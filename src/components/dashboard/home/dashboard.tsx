@@ -53,90 +53,22 @@ function getTransactionStatusClasses(status: string) {
   }
 }
 
-interface CategoryRevenue {
-  name: string;
-  amount: string;
-  percentage: number;
-}
-
-interface Activity {
-  id: string;
-  content: React.ReactNode;
-  time: string;
-}
-
 const STATS = [
   {
-    number: "285",
     label: "Total Users",
     color: "text-[#0F172A]",
   },
   {
-    number: "3,420",
     label: "Total Leads",
     color: "text-[#00BC7D]",
   },
   {
-    number: "8,740",
     label: "Sold Leads",
     color: "text-[#D97706]",
   },
   {
-    number: "€ 48,600",
     label: "Credits Purchased",
     color: "text-[#9333EA]",
-  },
-];
-
-const TRANSACTIONS: Transaction[] = [
-  {
-    id: "1",
-    buyer: "Infissi Group Sri",
-    package: "Growth",
-    amount: "€ 129",
-    status: "Paid",
-  },
-  {
-    id: "2",
-    buyer: "CasaMove Traslochi",
-    package: "Starter",
-    amount: "€ 49",
-    status: "Paid",
-  },
-  {
-    id: "3",
-    buyer: "Solaris Energy",
-    package: "Professional",
-    amount: "€ 349",
-    status: "Paid",
-  },
-  {
-    id: "4",
-    buyer: "Solaris Energy",
-    package: "Professional",
-    amount: "€ 349",
-    status: "Paid",
-  },
-  {
-    id: "5",
-    buyer: "Solaris Energy",
-    package: "Professional",
-    amount: "€ 349",
-    status: "Paid",
-  },
-  {
-    id: "6",
-    buyer: "Solaris Energy",
-    package: "Professional",
-    amount: "€ 349",
-    status: "Paid",
-  },
-  {
-    id: "7",
-    buyer: "BuildRight Sri",
-    package: "Growth",
-    amount: "€ 599",
-    status: "Paid",
   },
 ];
 
@@ -202,8 +134,7 @@ export default function OverviewPage() {
       status: status.replace(/^./, (character) => character.toUpperCase()),
     };
   });
-  const displayTransactions =
-    transactionsResponse === undefined ? TRANSACTIONS : recentTransactions;
+  const displayTransactions = recentTransactions;
   const overviewStats = STATS.map((stat, index) => ({
     ...stat,
     number: overview
