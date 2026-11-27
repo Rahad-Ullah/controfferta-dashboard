@@ -18,6 +18,12 @@ import { useRouter } from "next/navigation";
 import React, { useId, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { useSWRConfig } from "swr";
+import { apiKeys } from "@/lib/api/keys";
+import { nextFetch } from "@/lib/api/fetcher";
+import type { Category } from "@/types/category.interface";
 
 type ImportStep = 1 | 2 | 3 | 4 | 5;
 
@@ -38,30 +44,64 @@ interface TargetField {
 }
 
 const TARGET_FIELDS: TargetField[] = [
-  { id: "full_name", label: "Customer name", required: true, hint: "Full name of the contact" },
-  { id: "phone_number", label: "Phone", required: true, hint: "Primary phone or mobile" },
-  { id: "email_address", label: "Email", required: false, hint: "Contact email address" },
-  { id: "city", label: "City", required: false, hint: "City or municipality" },
-  { id: "service_type", label: "Service requested", required: false, hint: "Requested service or trade" },
+  { id: "title", label: "Project title", required: true, hint: "Short title of the requested work" },
+  { id: "description", label: "Description", required: true, hint: "Detailed scope of work" },
+  { id: "address", label: "Project address", required: true, hint: "Full project address or city" },
+  { id: "budget_minimum", label: "Minimum budget", required: true, hint: "Minimum budget in EUR" },
+  { id: "budget_maximum", label: "Maximum budget", required: true, hint: "Maximum budget in EUR" },
+  { id: "timeline", label: "Timeline", required: true, hint: "Expected completion timeframe" },
+  { id: "client_name", label: "Client name", required: true, hint: "Full name of the contact" },
+  { id: "client_email", label: "Client email", required: true, hint: "Valid contact email" },
+  { id: "client_phone", label: "Client phone", required: true, hint: "Primary phone or mobile" },
+  { id: "client_address", label: "Client address", required: false, hint: "Defaults to project address" },
 ];
 
 interface ValidatedRow {
+  index: number;
+  title: string;
+  description: string;
   name: string;
   phone: string;
+  email: string;
+  clientAddress: string;
   city: string;
   service: string;
+  address: string;
+  budgetMinimum: number;
+  budgetMaximum: number;
+  timeline: string;
   status: "ok" | "error" | "duplicate";
   errorReason?: string;
 }
 
-const CATEGORY_OPTIONS = [
-  "Windows & Doors",
-  "Solar Panels",
-  "Construction",
-  "Moving",
-  "Air Conditioning",
-  "Various",
-];
+interface BulkLead {
+  title: string;
+  description: string;
+  category: string;
+  address: string;
+  location: { type: "Point"; coordinates: [number, number] };
+  budgetRange: { minimum: number; maximum: number };
+  timeline: string;
+  client: {
+    name: string;
+    email: string;
+    phone: { countryCode: string; number: string };
+    address: string;
+  };
+}
+
+interface BulkCreatePayload {
+  options: { skipInvalid: boolean };
+  leads: BulkLead[];
+}
+
+interface BulkCreateResponse {
+  total: number;
+  importedCount: number;
+  failedCount: number;
+  importedLeadIds: string[];
+  errors: Array<{ index: number; title?: string; reason: string }>;
+}
 
 export default function LeadImportPage() {
   const router = useRouter();
@@ -79,19 +119,32 @@ export default function LeadImportPage() {
 
   // Step 2: Mapping state (targetFieldId -> sourceColumnName)
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({
-    full_name: "full_name",
-    phone_number: "phone_number",
-    email_address: "email_address",
-    city: "city",
-    service_type: "service_type",
+    title: "",
+    description: "",
+    address: "",
+    budget_minimum: "",
+    budget_maximum: "",
+    timeline: "",
+    client_name: "",
+    client_email: "",
+    client_phone: "",
+    client_address: "",
   });
   const [mappingError, setMappingError] = useState<string | null>(null);
 
   // Step 4: Configuration & Preview state
-  const [defaultCategory, setDefaultCategory] = useState<string>("Various");
-  const [defaultCreditCost, setDefaultCreditCost] = useState<number>(15);
-  const [creditCostError, setCreditCostError] = useState<string | null>(null);
+  const [defaultCategory, setDefaultCategory] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importSummary, setImportSummary] = useState<BulkCreateResponse | null>(null);
+  const { mutate } = useSWRConfig();
+  const { data: categories = [], isLoading: isLoadingCategories } = useSWR<Category[]>(
+    apiKeys.categories("limit=1000&sort=name"),
+  );
+  const { trigger: createBulkLeads } = useSWRMutation(
+    apiKeys.leadsBulkCreate,
+    (url: string, { arg }: { arg: BulkCreatePayload }) =>
+      nextFetch<BulkCreateResponse>({ url, method: "POST", payload: arg }),
+  );
 
   // Format bytes to KB/MB
   const formatFileSize = (bytes: number) => {
@@ -129,38 +182,32 @@ export default function LeadImportPage() {
 
     try {
       if (isCsv) {
-        // Parse CSV with standard FileReader
+        // Parse CSV with the same table parser used for Excel files so quoted
+        // commas (for example, "Via Roma 12, Milano") do not shift columns.
         const text = await file.text();
-        const lines = text
-          .split(/\r\n|\n|\r/)
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0);
+        const workbook = XLSX.read(text, { type: "string", raw: true });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) throw new Error("CSV file contains no data.");
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData: unknown[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-        if (lines.length < 2) {
+        if (!jsonData || jsonData.length < 2) {
           throw new Error("CSV file must contain at least a header and 1 data row.");
         }
 
-        // Detect delimiter (comma, semicolon, or tab)
-        const firstLine = lines[0];
-        let delimiter = ",";
-        if (firstLine.includes(";") && firstLine.split(";").length > firstLine.split(",").length) {
-          delimiter = ";";
-        } else if (firstLine.includes("\t") && firstLine.split("\t").length > firstLine.split(",").length) {
-          delimiter = "\t";
-        }
-
-        const headers = firstLine
-          .split(delimiter)
-          .map((h) => h.replace(/^["']|["']$/g, "").trim());
-
+        const rawHeaders = (jsonData[0] as unknown[]) || [];
+        const headers = rawHeaders.map((h, idx) => (h ? String(h).trim() : `column_${idx + 1}`));
         const records: Record<string, string>[] = [];
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i]
-            .split(delimiter)
-            .map((v) => v.replace(/^["']|["']$/g, "").trim());
+
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = (jsonData[i] as unknown[]) || [];
+          if (!row.length || row.every((cell) => cell === undefined || cell === null || cell === "")) {
+            continue;
+          }
+
           const record: Record<string, string> = {};
-          headers.forEach((h, idx) => {
-            record[h] = values[idx] || "";
+          headers.forEach((header, idx) => {
+            record[header] = row[idx] !== undefined && row[idx] !== null ? String(row[idx]).trim() : "";
           });
           records.push(record);
         }
@@ -235,25 +282,22 @@ export default function LeadImportPage() {
     TARGET_FIELDS.forEach((target) => {
       const matched = headers.find((h) => {
         const lowerH = h.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (target.id === "full_name") {
-          return lowerH.includes("name") || lowerH.includes("nome") || lowerH.includes("customer");
-        }
-        if (target.id === "phone_number") {
-          return lowerH.includes("phone") || lowerH.includes("tel") || lowerH.includes("mobile") || lowerH.includes("cell");
-        }
-        if (target.id === "email_address") {
-          return lowerH.includes("email") || lowerH.includes("mail");
-        }
-        if (target.id === "city") {
-          return lowerH.includes("city") || lowerH.includes("citta") || lowerH.includes("town");
-        }
-        if (target.id === "service_type") {
-          return lowerH.includes("service") || lowerH.includes("servizio") || lowerH.includes("category") || lowerH.includes("type");
-        }
-        return false;
+        const aliases: Record<string, string[]> = {
+          title: ["title", "project", "subject", "titolo"],
+          description: ["description", "details", "scope", "descrizione"],
+          address: ["address", "location", "city", "indirizzo", "citta"],
+          budget_minimum: ["budgetminimum", "minbudget", "budgetmin", "minimum", "min"],
+          budget_maximum: ["budgetmaximum", "maxbudget", "budgetmax", "maximum", "max"],
+          timeline: ["timeline", "timeframe", "deadline", "urgenza"],
+          client_name: ["clientname", "customername", "fullname", "nome", "customer"],
+          client_email: ["clientemail", "customeremail", "email", "mail"],
+          client_phone: ["clientphone", "customerphone", "phone", "tel", "mobile", "cell"],
+          client_address: ["clientaddress", "customeraddress"],
+        };
+        return (aliases[target.id] ?? []).some((alias) => lowerH.includes(alias));
       });
 
-      newMapping[target.id] = matched || headers[0] || "";
+      newMapping[target.id] = matched || "";
     });
 
     setFieldMapping(newMapping);
@@ -326,48 +370,72 @@ export default function LeadImportPage() {
     if (!parsedFile || parsedFile.records.length === 0) {
       return {
         rows: [] as ValidatedRow[],
+        validRows: [] as ValidatedRow[],
         validCount: 0,
         errorCount: 0,
         duplicateCount: 0,
       };
     }
 
-    const nameCol = fieldMapping.full_name;
-    const phoneCol = fieldMapping.phone_number;
-    const emailCol = fieldMapping.email_address;
-    const cityCol = fieldMapping.city;
-    const serviceCol = fieldMapping.service_type;
+    const value = (record: Record<string, string>, field: string) =>
+      field && field !== "__none__" ? (record[field] || "").trim() : "";
 
     const seenPhones = new Set<string>();
     const seenEmails = new Set<string>();
 
     const rows: ValidatedRow[] = [];
+    const validRows: ValidatedRow[] = [];
     let validCount = 0;
     let errorCount = 0;
     let duplicateCount = 0;
 
     parsedFile.records.forEach((r, idx) => {
-      const name = (r[nameCol] || "").trim();
-      const phone = (r[phoneCol] || "").trim();
-      const email = emailCol ? (r[emailCol] || "").trim() : "";
-      const city = cityCol ? (r[cityCol] || "").trim() || "N/A" : "N/A";
-      const service = serviceCol ? (r[serviceCol] || "").trim() || "General" : "General";
+      const title = value(r, fieldMapping.title);
+      const description = value(r, fieldMapping.description);
+      const address = value(r, fieldMapping.address);
+      const name = value(r, fieldMapping.client_name);
+      const phone = value(r, fieldMapping.client_phone);
+      const email = value(r, fieldMapping.client_email);
+      const clientAddress = value(r, fieldMapping.client_address) || address;
+      const timeline = value(r, fieldMapping.timeline);
+      const minimumText = value(r, fieldMapping.budget_minimum).replace(/[^0-9.-]/g, "");
+      const maximumText = value(r, fieldMapping.budget_maximum).replace(/[^0-9.-]/g, "");
+      const budgetMinimum = Number(minimumText);
+      const budgetMaximum = Number(maximumText);
+      const city = address || "N/A";
+      const service = title || "N/A";
 
       let status: "ok" | "error" | "duplicate" = "ok";
       let errorReason: string | undefined;
 
-      // Validate name
-      if (!name) {
+      if (!title || title.length < 3 || title.length > 100) {
         status = "error";
-        errorReason = "Missing customer name";
+        errorReason = "Title must be between 3 and 100 characters";
+      } else if (!description || description.length < 10) {
+        status = "error";
+        errorReason = "Description must contain at least 10 characters";
+      } else if (!address) {
+        status = "error";
+        errorReason = "Missing project address";
+      } else if (!timeline) {
+        status = "error";
+        errorReason = "Missing timeline";
+      } else if (!name) {
+        status = "error";
+        errorReason = "Missing client name";
       }
 
-      // Validate phone: must contain digits, at least 6 digits
       const phoneDigits = phone.replace(/\D/g, "");
       if (status === "ok") {
         if (!phone || phoneDigits.length < 6 || phone.toLowerCase().includes("invalid")) {
           status = "error";
           errorReason = "Invalid phone number format";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          status = "error";
+          errorReason = "Invalid email address";
+        } else if (!Number.isFinite(budgetMinimum) || !Number.isFinite(budgetMaximum) || budgetMinimum < 0 || budgetMaximum < budgetMinimum) {
+          status = "error";
+          errorReason = "Budget range is invalid";
         }
       }
 
@@ -392,21 +460,30 @@ export default function LeadImportPage() {
         errorCount++;
       }
 
-      // Collect sample for validation view (max 20 rows preview)
-      if (idx < 20) {
-        rows.push({
-          name: name || "(Empty Name)",
-          phone: phone || "No Phone",
-          city,
-          service,
-          status,
-          errorReason,
-        });
-      }
+      const validatedRow = {
+        index: idx,
+        title,
+        description,
+        name: name || "(Empty Name)",
+        phone: phone || "No Phone",
+        email,
+          clientAddress,
+        city,
+        service,
+        address,
+        budgetMinimum,
+        budgetMaximum,
+        timeline,
+        status,
+        errorReason,
+      } satisfies ValidatedRow;
+      if (idx < 20) rows.push(validatedRow);
+      if (status === "ok") validRows.push(validatedRow);
     });
 
     return {
       rows,
+      validRows,
       validCount,
       errorCount,
       duplicateCount,
@@ -425,22 +502,53 @@ export default function LeadImportPage() {
   // ─────────────────────────────────────────────────────────────
   // STEP 4: PREVIEW & IMPORT SUBMISSION
   // ─────────────────────────────────────────────────────────────
-  const handleFinalImport = () => {
-    setCreditCostError(null);
-
-    if (isNaN(defaultCreditCost) || defaultCreditCost < 1) {
-      setCreditCostError("Credit cost must be at least 1 credit.");
-      toast.error("Credit cost must be 1 or higher");
+  const handleFinalImport = async () => {
+    if (!defaultCategory) {
+      toast.error("Select a category before importing");
+      return;
+    }
+    if (validationResults.validRows.length > 500) {
+      toast.error("The backend accepts a maximum of 500 leads per import.");
       return;
     }
 
     setIsSubmitting(true);
-
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const response = await createBulkLeads(
+        {
+          options: { skipInvalid: true },
+          leads: validationResults.validRows.map((row) => ({
+            title: row.title,
+            description: row.description,
+            category: defaultCategory,
+            address: row.address,
+            location: { type: "Point", coordinates: [0, 0] },
+            budgetRange: {
+              minimum: row.budgetMinimum,
+              maximum: row.budgetMaximum,
+            },
+            timeline: row.timeline,
+            client: {
+              name: row.name,
+              email: row.email,
+              phone: { countryCode: "+39", number: row.phone },
+              address: row.clientAddress,
+            },
+          })),
+        },
+        { throwOnError: true },
+      );
+      setImportSummary(response);
+      await mutate(
+        (key) => typeof key === "string" && key.startsWith("/leads/all"),
+      );
+      toast.success(`${response.importedCount} leads successfully imported!`);
       setCurrentStep(5);
-      toast.success(`${validationResults.validCount} leads successfully imported!`);
-    }, 900);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Unable to import leads");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -792,19 +900,19 @@ export default function LeadImportPage() {
           <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
             <div className="bg-[#E6F8F2] border border-emerald-200/70 rounded-2xl p-4 sm:p-5 text-center">
               <div className="text-2xl sm:text-3xl font-bold text-[#00BC7D]">
-                {validationResults.validCount}
+                   {validationResults.validCount}
               </div>
               <div className="text-xs text-slate-600 font-semibold mt-1">✓ Valid leads</div>
             </div>
             <div className="bg-rose-50 border border-rose-200/70 rounded-2xl p-4 sm:p-5 text-center">
               <div className="text-2xl sm:text-3xl font-bold text-rose-500">
-                {validationResults.errorCount}
+                   {validationResults.errorCount}
               </div>
               <div className="text-xs text-slate-600 font-semibold mt-1">✕ Errors</div>
             </div>
             <div className="bg-amber-50/60 border border-amber-200/70 rounded-2xl p-4 sm:p-5 text-center">
               <div className="text-2xl sm:text-3xl font-bold text-amber-700">
-                {validationResults.duplicateCount}
+                   {validationResults.duplicateCount}
               </div>
               <div className="text-xs text-slate-600 font-semibold mt-1">! Duplicates</div>
             </div>
@@ -929,12 +1037,16 @@ export default function LeadImportPage() {
                     <select
                       id="default-category-select"
                       value={defaultCategory}
+                      disabled={isLoadingCategories || categories.length === 0}
                       onChange={(e) => setDefaultCategory(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00BC7D]/40 transition-all appearance-none cursor-pointer pr-10"
                     >
-                      {CATEGORY_OPTIONS.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
+                      <option value="">
+                        {isLoadingCategories ? "Loading categories..." : "Select a category"}
+                      </option>
+                      {categories.filter((category) => !category.isDeleted).map((category) => (
+                        <option key={category._id} value={category.name}>
+                          {category.name}
                         </option>
                       ))}
                     </select>
@@ -942,37 +1054,6 @@ export default function LeadImportPage() {
                   </div>
                 </div>
 
-                {/* Default Credit Cost input with validation */}
-                <div>
-                  <label htmlFor="credit-cost-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Default Credit Cost (per lead)
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="credit-cost-input"
-                      type="number"
-                      min="1"
-                      max="500"
-                      value={defaultCreditCost}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value, 10);
-                        setDefaultCreditCost(isNaN(val) ? 0 : val);
-                        setCreditCostError(null);
-                      }}
-                      className={`w-full bg-white border rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none transition-all ${
-                        creditCostError
-                          ? "border-rose-400 focus:ring-2 focus:ring-rose-400/40"
-                          : "border-slate-200 focus:ring-2 focus:ring-[#00BC7D]/40"
-                      }`}
-                    />
-                    <span className="text-xs text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 font-medium pointer-events-none">
-                      credits
-                    </span>
-                  </div>
-                  {creditCostError && (
-                    <p className="text-[11px] text-rose-500 mt-1">{creditCostError}</p>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -991,12 +1072,6 @@ export default function LeadImportPage() {
               <div className="flex items-center justify-between">
                 <span className="text-slate-600">Selected default category</span>
                 <span className="font-bold text-[#0F172A]">{defaultCategory}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600">Credit value</span>
-                <span className="font-bold text-[#9333EA] text-base">
-                  {defaultCreditCost} credits each
-                </span>
               </div>
             </div>
           </div>
@@ -1049,13 +1124,13 @@ export default function LeadImportPage() {
             <div className="flex items-center justify-center gap-3 sm:gap-6 mb-8 flex-wrap">
               <div className="bg-[#E6F8F2] border border-emerald-200/70 p-5 rounded-2xl w-32 text-center shadow-2xs">
                 <div className="text-3xl font-bold text-[#00BC7D]">
-                  {validationResults.validCount}
+                  {importSummary?.importedCount ?? validationResults.validCount}
                 </div>
                 <div className="text-xs font-semibold text-slate-600 mt-1.5">Imported</div>
               </div>
               <div className="bg-rose-50 border border-rose-200/70 p-5 rounded-2xl w-32 text-center shadow-2xs">
                 <div className="text-3xl font-bold text-rose-500">
-                  {validationResults.errorCount}
+                  {importSummary?.failedCount ?? validationResults.errorCount}
                 </div>
                 <div className="text-xs font-semibold text-slate-600 mt-1.5">Failed</div>
               </div>

@@ -10,6 +10,7 @@ export const apiKeys = {
   user: (id: string) => `/users/${id}`,
   userStatus: (id: string) => `/users/${id}/status`,
   leads: (query = "") => `/leads/all${query ? `?${query}` : ""}`,
+  leadsBulkCreate: "/leads/bulk-create",
   lead: (id: string) => `/leads/${id}`,
   leadStatus: (id: string) => `/leads/${id}/status`,
   categories: (query = "") => `/categories${query ? `?${query}` : ""}`,
