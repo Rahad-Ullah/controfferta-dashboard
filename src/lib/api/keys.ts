@@ -37,6 +37,7 @@ export const apiKeys = {
   notificationsReadAll: "/notifications/read-all",
   profile: "/profile",
   settings: "/settings",
+  analyticsAdminOverview: "/analytics/admin/overview",
   disclaimers: "/disclaimers",
   disclaimer: (type: string) => `/disclaimers/${type}`,
 } as const;

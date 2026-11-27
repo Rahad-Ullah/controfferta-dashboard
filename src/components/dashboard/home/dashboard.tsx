@@ -21,6 +21,15 @@ interface OverviewUser {
   roleRef?: { _id?: string; businessName?: string };
 }
 
+interface AdminDashboardOverview {
+  totalUsers: number;
+  totalBuyers: number;
+  totalCompanies: number;
+  totalLeads: number;
+  soldLeads: number;
+  creditsPurchased: number;
+}
+
 function getTransactionStatusClasses(status: string) {
   switch (status.toLowerCase()) {
     case "completed":
@@ -53,11 +62,6 @@ const STATS = [
     number: "285",
     label: "Total Users",
     color: "text-[#0F172A]",
-  },
-  {
-    number: "1,284",
-    label: "Total Byers/Companies",
-    color: "text-[#2563EB]",
   },
   {
     number: "3,420",
@@ -171,6 +175,9 @@ const ACTIVITIES: Activity[] = [
 ];
 
 export default function OverviewPage() {
+  const { data: overview } = useSWR<AdminDashboardOverview>(
+    apiKeys.analyticsAdminOverview,
+  );
   const { data: transactionsResponse } = useSWR<unknown>(
     apiKeys.transactions("limit=7"),
   );
@@ -228,6 +235,17 @@ export default function OverviewPage() {
   });
   const displayTransactions =
     transactionsResponse === undefined ? TRANSACTIONS : recentTransactions;
+  const overviewStats = STATS.map((stat, index) => ({
+    ...stat,
+    number: overview
+      ? [
+          overview.totalUsers,
+          overview.totalLeads,
+          overview.soldLeads,
+          `€ ${overview.creditsPurchased.toLocaleString()}`,
+        ][index].toLocaleString()
+      : "—",
+  }));
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 select-none font-sans">
@@ -237,8 +255,8 @@ export default function OverviewPage() {
       </h1>
 
       {/* ── Stat Cards (5 Column Grid) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3 sm:gap-4">
-        {STATS.map((stat) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {overviewStats.map((stat) => (
           <div
             key={stat.label}
             className="min-w-0 bg-white rounded-2xl p-4 sm:p-5 2xl:p-6 border border-slate-200/70 shadow-2xs flex flex-col justify-between"
@@ -350,27 +368,6 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          {/* Card 2: Recent Activity */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/70 shadow-2xs">
-            <h2 className="text-lg font-bold text-[#0F172A] mb-5">
-              Recent Activity
-            </h2>
-            <div className="space-y-5">
-              {ACTIVITIES.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-start justify-between gap-3 text-sm"
-                >
-                  <div className="text-slate-600 text-[13px] sm:text-sm leading-snug">
-                    {act.content}
-                  </div>
-                  <span className="text-xs text-slate-400 shrink-0 whitespace-nowrap mt-0.5">
-                    {act.time}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
