@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWRMutation from "swr/mutation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 import { ApiError, nextFetch } from "@/lib/api/fetcher";
 import { apiKeys } from "@/lib/api/keys";
 import { refreshCurrentUser } from "@/hooks/use-current-user";
@@ -85,13 +85,14 @@ function LoginFormContent() {
       router.push(redirectTo);
     } catch (error) {
       if (error instanceof ApiError && error.status === 407) {
-        toast.info(
+        toast(
           error.message ||
             "Please verify your account, then try to login again.",
         );
         const verifyQuery = new URLSearchParams({ email: trimmedEmail });
-        if (redirectTo !== "/")
+        if (redirectTo !== "/") {
           verifyQuery.set("redirect", redirectTo);
+        }
         router.push(`/verify-otp?${verifyQuery.toString()}`);
         return;
       }

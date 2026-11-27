@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWRMutation from "swr/mutation";
 import { ArrowLeft, Check, Eye, EyeOff, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 import { nextFetch } from "@/lib/api/fetcher";
 import { apiKeys } from "@/lib/api/keys";
 
