@@ -21,12 +21,13 @@ const PAGE_TITLE_MAP: Record<string, string> = {
   "/notifications": "Notifications",
   "/settings": "Profile",
   "/faqs": "FAQ",
-  "/disclaimer": "General Information",
+  "/disclaimer": "Platform Settings",
   "/disclaimer/privacy_policy": "Privacy Policy",
   "/disclaimer/privacy": "Privacy Policy",
   "/disclaimer/terms_of_service": "Terms & Condition",
   "/disclaimer/terms": "Terms & Condition",
-  "/disclaimer/general": "General Information",
+  "/disclaimer/general": "Platform Settings",
+  "/platform-settings": "Platform Settings",
 };
 
 export default function Header() {

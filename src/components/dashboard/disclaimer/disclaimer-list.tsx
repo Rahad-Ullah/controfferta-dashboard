@@ -36,7 +36,7 @@ const DISCLAIMER_ITEMS: DisclaimerItem[] = [
     id: "3",
     slug: "general",
     type: "general",
-    title: "General Information",
+    title: "Platform Settings",
     description:
       "General legal disclosures, compliance notes, and platform information.",
     icon: Info,

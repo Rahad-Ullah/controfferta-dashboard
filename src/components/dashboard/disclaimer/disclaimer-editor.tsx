@@ -34,7 +34,7 @@ export default function DisclaimerTypePage() {
       return "Terms & Condition";
     }
     if (type === "general") {
-      return "General Information";
+      return "Platform Settings";
     }
     // Format other slugs nicely (e.g. "cancellation_policy" -> "Cancellation Policy")
     return type

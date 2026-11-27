@@ -20,13 +20,13 @@ import {
   CircleHelp,
   ClipboardList,
   FileText,
-  Info,
   LayoutDashboard,
   LucideIcon,
   LogOut,
   Newspaper,
   PackageOpen,
   ShieldCheck,
+  Settings,
   Tags,
   UserRound,
   UsersRound,
@@ -56,7 +56,7 @@ const menuItems: MenuItem[] = [
   { name: "FAQ", path: "/faqs", icon: CircleHelp },
   { name: "Privacy Policy", path: "/disclaimer/privacy_policy", icon: ShieldCheck },
   { name: "Terms & Condition", path: "/disclaimer/terms_of_service", icon: FileText },
-  { name: "General Information", path: "/disclaimer/general", icon: Info },
+  { name: "Platform Settings", path: "/platform-settings", icon: Settings },
 ];
 
 export default function Sidebar() {
