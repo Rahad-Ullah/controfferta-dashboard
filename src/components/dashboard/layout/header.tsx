@@ -3,9 +3,13 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import LogoutDialog from "@/components/dashboard/layout/logout-dialog";
-import { ChevronDown, LogOut, UserRound } from "lucide-react";
+import { apiKeys } from "@/lib/api/keys";
+import { Bell, ChevronDown, LogOut, UserRound } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import useSWR from "swr";
+import type { NotificationListResponse } from "@/types/notification.interface";
 
 const PAGE_TITLE_MAP: Record<string, string> = {
   "/": "Dashboard",
@@ -34,6 +38,9 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useCurrentUser();
+  const { data: notificationData } = useSWR<NotificationListResponse["data"]>(
+    apiKeys.notifications("page=1&limit=1"),
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -77,7 +84,21 @@ export default function Header() {
       </div>
 
       {/* ── Right Side: Circular Avatar 'M' ── */}
-      <div ref={profileRef} className="relative flex items-center">
+      <div className="flex items-center gap-2">
+        <Link
+          href="/notifications"
+          aria-label="Notifications"
+          title="Notifications"
+          className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-black/5 hover:text-[#00BC7D]"
+        >
+          <Bell className="size-5" />
+          {notificationData?.unreadCount ? (
+            <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#00BC7D] px-1 text-[10px] font-bold text-white">
+              {notificationData.unreadCount > 99 ? "99+" : notificationData.unreadCount}
+            </span>
+          ) : null}
+        </Link>
+        <div ref={profileRef} className="relative flex items-center">
         <button
           type="button"
           onClick={() => setIsOpen((open) => !open)}
@@ -128,6 +149,7 @@ export default function Header() {
           </div>
         ) : null}
         <LogoutDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen} />
+        </div>
       </div>
     </header>
   );

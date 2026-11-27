@@ -16,7 +16,6 @@ import LogoutDialog from "@/components/dashboard/layout/logout-dialog";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeftRight,
-  Bell,
   CircleHelp,
   ClipboardList,
   FileText,
@@ -51,7 +50,6 @@ const menuItems: MenuItem[] = [
   { name: "Blog", path: "/blogs", icon: Newspaper },
   { name: "Credit Packages", path: "/credit-packages", icon: PackageOpen },
   { name: "Transactions", path: "/transactions", icon: ArrowLeftRight },
-  { name: "Notifications", path: "/notifications", icon: Bell, badge: 3 },
   { name: "Profile", path: "/settings", icon: UserRound },
   { name: "FAQ", path: "/faqs", icon: CircleHelp },
   { name: "Privacy Policy", path: "/disclaimer/privacy_policy", icon: ShieldCheck },

@@ -1,4 +1,5 @@
 import Header from "@/components/dashboard/layout/header";
+import { SocketProvider } from "@/components/notifications/socket-provider";
 import AdminRouteGuard from "@/components/dashboard/layout/admin-route-guard";
 import Sidebar from "@/components/dashboard/layout/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -11,6 +12,7 @@ export default function DashboardLayout({
 }>) {
   return (
     <AdminRouteGuard>
+      <SocketProvider>
       <SidebarProvider>
         <Sidebar />
         <SidebarInset className="flex min-h-svh flex-col overflow-hidden bg-[#EDF0F3]">
@@ -20,6 +22,7 @@ export default function DashboardLayout({
           </main>
         </SidebarInset>
       </SidebarProvider>
+      </SocketProvider>
     </AdminRouteGuard>
   );
 }
