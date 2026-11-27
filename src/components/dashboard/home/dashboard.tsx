@@ -1,13 +1,39 @@
 "use client";
 
 import Link from "next/link";
+import useSWR from "swr";
+import { apiKeys } from "@/lib/api/keys";
+import type { CreditPackage } from "@/types/credit-package.interface";
 
 interface Transaction {
   id: string;
   buyer: string;
+  date?: string;
   package: string;
   amount: string;
-  status: "Paid";
+  status: string;
+}
+
+interface OverviewUser {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  roleRef?: { _id?: string; businessName?: string };
+}
+
+function getTransactionStatusClasses(status: string) {
+  switch (status.toLowerCase()) {
+    case "completed":
+    case "paid":
+      return "bg-[#E6F8F2] text-[#00BC7D]";
+    case "pending":
+      return "bg-amber-50 text-amber-600";
+    case "failed":
+    case "cancelled":
+      return "bg-rose-50 text-rose-600";
+    default:
+      return "bg-slate-100 text-slate-600";
+  }
 }
 
 interface CategoryRevenue {
@@ -145,6 +171,64 @@ const ACTIVITIES: Activity[] = [
 ];
 
 export default function OverviewPage() {
+  const { data: transactionsResponse } = useSWR<unknown>(
+    apiKeys.transactions("limit=7"),
+  );
+  const { data: users = [] } = useSWR<OverviewUser[]>(
+    apiKeys.users("limit=100"),
+  );
+  const { data: packages = [] } = useSWR<CreditPackage[]>(
+    apiKeys.creditPackages("limit=100"),
+  );
+
+  const providerByRoleId = new Map(
+    users.flatMap((user) =>
+      [user._id, user.roleRef?._id]
+        .filter((id): id is string => Boolean(id))
+        .map((id) => [id, user] as const),
+    ),
+  );
+  const packageById = new Map(packages.map((pkg) => [pkg._id, pkg]));
+  const transactions = Array.isArray(transactionsResponse)
+    ? transactionsResponse
+    : ((transactionsResponse as { data?: unknown[] } | undefined)?.data ?? []);
+  const recentTransactions: Transaction[] = (
+    transactions as Record<string, unknown>[]
+  ).map((transaction) => {
+    const userRecord = transaction.user as Record<string, unknown> | undefined;
+    const provider = providerByRoleId.get(String(userRecord?._id ?? ""));
+    const reference = transaction.reference as Record<string, unknown> | undefined;
+    const purchase = reference?.id as Record<string, unknown> | undefined;
+    const pricing = purchase?.pricing as Record<string, unknown> | undefined;
+    const packageValue = purchase?.package;
+    const packageRecord =
+      packageValue && typeof packageValue === "object"
+        ? (packageValue as Record<string, unknown>)
+        : packageById.get(String(packageValue ?? ""));
+    const status = String(
+      transaction.status ?? transaction.paymentStatus ?? "Pending",
+    );
+
+    return {
+      id: String(transaction._id ?? transaction.uid ?? ""),
+      date: transaction.createdAt
+        ? new Date(String(transaction.createdAt)).toLocaleDateString()
+        : "—",
+      buyer:
+        [provider?.firstName, provider?.lastName].filter(Boolean).join(" ") ||
+        [userRecord?.firstName, userRecord?.lastName]
+          .filter((name): name is string => typeof name === "string" && Boolean(name))
+          .join(" ") ||
+        provider?.roleRef?.businessName ||
+        String(userRecord?.firstName ?? "Unknown buyer"),
+      package: String(packageRecord?.name ?? "—"),
+      amount: `€ ${String(pricing?.total ?? transaction.amount ?? "—")}`,
+      status: status.replace(/^./, (character) => character.toUpperCase()),
+    };
+  });
+  const displayTransactions =
+    transactionsResponse === undefined ? TRANSACTIONS : recentTransactions;
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 select-none font-sans">
       {/* ── Greeting Header ── */}
@@ -190,18 +274,30 @@ export default function OverviewPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-2 font-bold">BUYER</th>
+                  <th className="py-3 px-2 font-bold">USER</th>
+                  <th className="py-3 px-2 font-bold">DATE</th>
                   <th className="py-3 px-2 font-bold">PACKAGE</th>
                   <th className="py-3 px-2 font-bold">AMOUNT</th>
                   <th className="py-3 px-2 font-bold">STATUS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {TRANSACTIONS.map((tx) => (
+                {displayTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      No transactions yet.
+                    </td>
+                  </tr>
+                ) : displayTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
                     {/* Buyer */}
                     <td className="py-3.5 px-2 font-medium text-[#0F172A] whitespace-nowrap">
                       {tx.buyer}
+                    </td>
+
+                    {/* Date */}
+                    <td className="py-3.5 px-2 text-slate-500 whitespace-nowrap">
+                      {tx.date ?? "—"}
                     </td>
 
                     {/* Package */}
@@ -218,7 +314,7 @@ export default function OverviewPage() {
 
                     {/* Status */}
                     <td className="py-3.5 px-2 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3.5 py-0.5 rounded-full text-xs font-semibold bg-[#E6F8F2] text-[#00BC7D]">
+                      <span className={`inline-flex items-center px-3.5 py-0.5 rounded-full text-xs font-semibold ${getTransactionStatusClasses(tx.status)}`}>
                         {tx.status}
                       </span>
                     </td>
