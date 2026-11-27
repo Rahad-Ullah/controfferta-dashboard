@@ -6,13 +6,14 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import toast from "react-hot-toast";
 
 import { nextFetch } from "@/lib/api/fetcher";
 import { apiKeys } from "@/lib/api/keys";
+import type { UserPagination } from "@/types/user.interface";
 
 type UserStatus = "active" | "suspended" | "banned";
 
@@ -36,7 +37,12 @@ interface ApiUser extends ManagedUser {
   roleRef?: { businessName?: string; creditBalance?: number } | string;
 }
 
-const PAGE_SIZE = 1000;
+interface UserListResponse {
+  data: ApiUser[];
+  pagination: UserPagination;
+}
+
+const DEFAULT_LIMIT = 10;
 
 function toManagedUser(user: ApiUser): ManagedUser {
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed user";
@@ -61,15 +67,41 @@ function statusLabel(status: UserStatus) {
 export default function UserManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | UserStatus>("All");
+  const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
 
+  const query = useMemo(() => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(DEFAULT_LIMIT),
+    });
+    if (searchQuery.trim()) params.set("searchTerm", searchQuery.trim());
+    if (statusFilter !== "All") params.set("status", statusFilter);
+    return params.toString();
+  }, [page, searchQuery, statusFilter]);
+
+  const usersKey = apiKeys.users(query);
+
   const {
-    data: apiUsers,
+    data: userList,
     error,
     isLoading,
     isValidating,
     mutate: mutateUsers,
-  } = useSWR<ApiUser[]>(apiKeys.users(`limit=${PAGE_SIZE}`));
+  } = useSWR<UserListResponse>(
+    usersKey,
+    (url: string) =>
+      nextFetch<UserListResponse>({ url, preservePagination: true }),
+  );
+
+  const pagination = userList?.pagination;
+
+  const users = useMemo(() => (userList?.data ?? []).map(toManagedUser), [userList]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
 
   const { trigger: updateStatus, isMutating: isUpdatingStatus } = useSWRMutation(
     apiKeys.users(),
@@ -82,22 +114,6 @@ export default function UserManagementPage() {
     { populateCache: false, revalidate: false },
   );
 
-  const users = useMemo(() => (apiUsers ?? []).map(toManagedUser), [apiUsers]);
-
-  const filteredUsers = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    return users.filter((u) => {
-      const matchesSearch =
-        !normalizedQuery ||
-        u.name.toLowerCase().includes(normalizedQuery) ||
-        u.email.toLowerCase().includes(normalizedQuery);
-      const matchesStatus =
-        statusFilter === "All" ? true : u.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [users, searchQuery, statusFilter]);
-
   const toggleUserStatus = async (user: ManagedUser) => {
     const nextStatus: UserStatus = user.status === "active" ? "suspended" : "active";
 
@@ -107,6 +123,9 @@ export default function UserManagementPage() {
         { throwOnError: true },
       );
       await mutateUsers();
+      if (users.length === 1 && page > 1) {
+        setPage((current) => current - 1);
+      }
       setSelectedUser(null);
       toast.success(
         `${user.name} has been ${nextStatus === "active" ? "reactivated" : "suspended"}.`,
@@ -120,6 +139,9 @@ export default function UserManagementPage() {
     }
   };
 
+  const firstRow = users.length ? (page - 1) * (pagination?.limit ?? DEFAULT_LIMIT) + 1 : 0;
+  const lastRow = (page - 1) * (pagination?.limit ?? DEFAULT_LIMIT) + users.length;
+
   return (
     <div className="space-y-6 pb-6 select-none font-sans">
       {/* ── Page Header ── */}
@@ -128,7 +150,7 @@ export default function UserManagementPage() {
           User Management
         </h1>
         <p className="text-sm text-slate-500 font-normal mt-1">
-          {isLoading ? "Loading users..." : `${users.length} registered users`}
+          {isLoading ? "Loading users..." : `${pagination?.total ?? 0} registered users`}
           {isValidating && !isLoading ? " · Syncing..." : ""}
         </p>
       </div>
@@ -190,14 +212,14 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredUsers.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-400 text-sm">
                     No users found matching your search.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => {
+                users.map((user) => {
                   const isActive = user.status === "active";
 
                   return (
@@ -288,18 +310,25 @@ export default function UserManagementPage() {
 
         {/* ── Table Footer / Pagination ── */}
         <div className="pt-6 flex items-center justify-between text-xs text-slate-400">
-          <span>Showing {filteredUsers.length} of {users.length} users</span>
+          <span>
+            Showing {firstRow}-{lastRow} of {pagination?.total ?? 0} users
+            {isValidating && " · Syncing..."}
+          </span>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((current) => current - 1)}
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer disabled:opacity-50"
               title="Previous"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               type="button"
-              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              disabled={!pagination || page >= pagination.totalPage || isLoading}
+              onClick={() => setPage((current) => current + 1)}
+              className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer disabled:opacity-50"
               title="Next"
             >
               <ChevronRight className="w-4 h-4" />

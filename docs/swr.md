@@ -2,7 +2,7 @@
 
 Read this before adding or changing API calls. This app is the private dashboard at `https://admin.controfferta.it`. Use SWR `2.5.1`. Paths below are relative to `src/`.
 
-`components/swr-config.tsx` wraps the app from `app/layout.tsx`, and its `SWRConfig` uses `swrFetcher`. Screens render `lib/placeholders.ts` until that screen is wired to the API.
+`components/swr-config.tsx` wraps the app from `app/layout.tsx`, and its `SWRConfig` uses `swrFetcher`. Until a screen's endpoint contract is confirmed, that screen keeps static sample data locally in its own component (per `AGENTS.md`). `lib/placeholders.ts` is the designated home for shared sample data once a screen is wired to the API; it is currently empty because no screen imports from it.
 
 ## Where things live
 

@@ -124,10 +124,10 @@ These mappings are starting points, not contracts. Confirm each route in the bac
 
 Users currently uses the following confirmed backend routes:
 
-- `GET /users/all?limit=1000` for the SWR list query.
+- `GET /users/all?page=1&limit=10&searchTerm=&status=` for the SWR list query with server-side pagination.
 - `PATCH /users/:id/status` with `{ status: "active" | "suspended" | "banned" }` for status changes.
 
-The API response is unwrapped by `nextFetch`, so the Users component receives the `data` array directly. Provider balances are read from the populated `roleRef.creditBalance` field; accounts without a provider profile display no balance. Search and status filtering are applied to the fetched client-side list.
+The API response envelope is `{ success, message, data, pagination }` where `pagination` is `{ page, limit, totalPage, total }`. The Users component uses `preservePagination: true` so the `pagination` object is preserved alongside `data`. Search (`searchTerm`) and status filtering are applied server-side via query params; `status` is omitted when set to "All", and `page` resets to 1 when either filter changes.
 
 ## Live notifications
 

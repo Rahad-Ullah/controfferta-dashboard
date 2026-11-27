@@ -31,3 +31,10 @@ export interface CurrentUserResponse {
   message?: string;
   data: CurrentUser;
 }
+
+export interface UserPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPage: number;
+}
