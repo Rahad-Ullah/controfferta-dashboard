@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileInput, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -198,7 +198,7 @@ export default function LeadsDashboard() {
           href="/leads/import"
           className="inline-flex cursor-pointer items-center gap-2 self-start rounded-full bg-[#00BC7D] px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition-all hover:bg-[#00a86b] sm:self-auto"
         >
-          <Upload className="h-4 w-4" />
+          <FileInput className="h-4 w-4" />
           <span>Import Lead</span>
         </Link>
       </header>
