@@ -2,6 +2,14 @@
   "name": "peterson-dashboard",
   "version": "0.1.0",
   "private": true,
+  "description": "Controfferta Admin Dashboard — private administration dashboard for https://admin.controfferta.it",
+  "author": {
+    "name": "Rahad Ullah",
+    "email": "rahadullah10@gmail.com",
+    "url": "https://rahad-ullah.vercel.app"
+  },
+  "license": "Private",
+  "keywords": ["controfferta", "admin", "dashboard", "nextjs", "react"],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
